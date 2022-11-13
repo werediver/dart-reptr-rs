@@ -1,0 +1,143 @@
+// Based on "Dart Programming Language Specification", 5th edition, Version 2.10
+//
+// https://dart.dev/guides/language/specifications/DartLangSpec-v2.10.pdf
+
+// 10 Classes
+
+ClassDeclaration = { "abstract"? ~ "class" ~ Identifier ~ TypeParameters?}
+
+// 10.6 Constructors
+
+// 10.6.2 Factories
+
+FactoryConstructorSignature = { "const"? ~ "factory" ~ ConstructorName ~ FormalParameterList }
+
+RedirectingFactoryConstructor = { "const"? ~ "factory" ~ ConstructorName ~ FormalParameterList ~ "=" ~ ConstructorDesignation }
+
+ConstructorDesignation =
+    { TypeIdentifier
+    | QualifiedName
+    | TypeName ~ TypeArguments ~ ("." ~ Identifier)?
+    }
+
+// 10.6.3 Constant Constructors
+
+ConstantConstructorSignature = { "const" ~ ConstructorName ~ FormalParameterList }
+
+// 15 Generics
+
+TypeParameter = { Metadata ~ Identifier ~ ("extends" ~ TypeNotVoid)? }
+TypeParameters = { "<" ~ TypeParameter ~ ("," ~ TypeParameter)* ~ ">" }
+
+// 16 Metadata
+
+Metadata = { ("@" ~ Metadatum)* }
+Metadatum = { Identifier | QualifiedName | ConstructorDesignation ~ Arguments }
+
+// 17 Expressions
+
+// 17.15 Function Invocation
+
+// 17.15.1 Actual Argument Lists
+
+Arguments = { "(" ~ (ArgumentList ~ ","?)? ~ ")" }
+ArgumentList =
+    { NamedArgument ~ ("," ~ NamedArgument)*
+    | expressionList ~ ("," ~ NamedArgument)*
+    }
+NamedArgument = { Label ~ Expression }
+
+// 17.37 Identifier Reference
+
+Identifier = @{ IdentifierStart ~ IdentifierPart* }
+BuiltInIdentifier =
+    { "abstract"
+    | "as"
+    | "covariant"
+    | "deferred"
+    | "dynamic"
+    | "export"
+    | "external"
+    | "extension"
+    | "factory"
+    | "Function"
+    | "get"
+    | "implements"
+    | "import"
+    | "interface"
+    | "library"
+    | "mixin"
+    | "operator"
+    | "part"
+    | "set"
+    | "static"
+    | "typedef"
+    }
+IdentifierNoDollar = { IdentifierStartNoDollar ~ IdentifierPartNoDollar* }
+IdentifierStart = { IdentifierStartNoDollar | "$" }
+IdentifierStartNoDollar = { ASCII_ALPHA | "_" }
+IdentifierPartNoDollar = { IdentifierStartNoDollar | ASCII_DIGIT }
+IdentifierPart = { IdentifierStart | ASCII_DIGIT }
+
+QualifiedName =
+    { TypeIdentifier ~ "." ~ Identifier
+    | TypeIdentifier ~ "." ~ TypeIdentifier ~ Identifier
+    }
+
+// 18 Statements
+
+// 18.13 Labels
+
+Label = { Identifier ~ ":" }
+
+// 20 Types
+
+// 20.1 Static Types
+
+TypeIdentifier = { !BuiltInIdentifier ~ Identifier }
+
+Type = { FunctionType | TypeNotFunction }
+TypeNotVoid = { FunctionType | TypeNotVoidNotFunction }
+TypeNotFunction = { "void" | TypeNotVoidNotFunction }
+TypeNotVoidNotFunction = { TypeName ~ TypeArguments? | "Function" }
+
+TypeName = { TypeIdentifier ~ ("." ~ TypeIdentifier)? }
+TypeArguments = { "<" ~ TypeList ~ ">" }
+TypeList = { Type ~ ("," ~ Type)* }
+TypeNotVoidNotFunctionList = { TypeNotVoidNotFunction ~ ("," ~ TypeNotVoidNotFunction)* }
+
+FunctionType = { FunctionTypeTails | TypeNotFunction ~ FunctionTypeTails }
+FunctionTypeTails = { FunctionTypeTail ~ FunctionTypeTails | FunctionTypeTail }
+FunctionTypeTail = { "Function" ~ TypeParameter? ~ ParameterTypeList }
+
+ParameterTypeList =
+    { "(" ~ ")"
+    | "(" ~ NormalParameterTypes ~ "," ~ OptionalParameterTypes ~ ")"
+    | "(" ~ NormalParameterTypes ~ ","? ~ ")"
+    | "(" ~ OptionalParameterTypes ~ ")"
+    }
+
+NormalParameterTypes = { NormalParameterType ~ ("," ~ NormalParameterType)* }
+NormalParameterType = { TypedIdentifier | Type }
+
+OptionalParameterTypes = { OptionalPositionalParameterTypes | NamedParameterTypes }
+OptionalPositionalParameterTypes = { "[" ~ NormalParameterTypes ~ ","? ~ "]" }
+
+NamedParameterTypes = { "{" ~ NamedParameterType ~ ("," ~ NamedParameterType)* ~ ","? ~ "}" }
+NamedParameterType = { TypedIdentifier }
+
+TypedIdentifier = { Type ~ Identifier }
+
+// 21 Reference
+
+// 21.1 Lexical Rules
+
+// 21.1.2 Comments
+
+SingleLineComment = { "//" ~ (!NEWLINE ~ ANY)* ~ NEWLINE? }
+MultiLineComment = { "/*" ~ (MultiLineComment | (!"*/" ~ ANY ~ ANY))* ~ "*/" }
+
+// Pest special rules
+
+WHITESPACE = _{ ("\t" | " " | NEWLINE)+ }
+COMMENT = _{ SingleLineComment | MultiLineComment }
