@@ -1,0 +1,7 @@
+[package]
+name = "reptr"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+dart-parser = { path = "../dart-parser" }
