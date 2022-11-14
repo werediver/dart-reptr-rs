@@ -2,11 +2,89 @@
 //
 // https://dart.dev/guides/language/specifications/DartLangSpec-v2.10.pdf
 
+// 8 Variables
+
+FinalConstVarOrType =
+    { "final" ~ Type?
+    | "const" ~ Type?
+    | VarOrType
+    }
+VarOrType = { "var" | Type }
+InitializedVariableDeclaration =
+    { DeclaredIdentifier ~ ("=" ~ Expression)? ~ ("," ~ InitializedIdentifier)* }
+InitializedIdentifier = { Identifier ~ ("=" ~ Expression)? }
+InitializedIdentifierList = { InitializedIdentifier ~ ("," ~ InitializedIdentifier)* }
+
+// 9 Functions
+
+FunctionSignature = { Type? ~ Identifier ~ FormalParameterPart }
+FormalParameterPart = { TypeParameters? ~ FormalParameterList }
+FunctionBody =
+    { "async"? ~ "=>" ~ Expression ~ ";"
+    | ("async" ~ "*"? | "sync" ~ "*")? ~ Block
+    }
+Block = { "{" ~ Statements ~ "}" }
+
+// 9.2 Formal Parameters
+
+FormalParameterList =
+    { "(" ~ ")"
+    | "(" ~ NormalFormalParameters ~ ","? ~ ")"
+    | "(" ~ NormalFormalParameters ~ "," ~ OptionalOrNamedFormalParameters ~ ")"
+    | "(" ~ OptionalOrNamedFormalParameters ~ ")"
+    }
+NormalFormalParameters = { NormalFormalParameter ~ ("," ~ NormalFormalParameter)* }
+OptionalOrNamedFormalParameters =
+    { OptionalPositionalFormalParameters
+    | NamedFormalParameters
+    }
+OptionalPositionalFormalParameters =
+    { "[" ~ DefaultFormalParameter ~ ("," ~ DefaultFormalParameter)* ~ ","? ~ "]" }
+NamedFormalParameters =
+    { "{" ~ DefaultNamedParameter ~ ("," ~ DefaultNamedParameter)* ~ ","? ~ "}" }
+
+// 9.2.1 Required Formals
+
+NormalFormalParameter = { Metadata ~ NormalFormalParameterNoMetadata }
+NormalFormalParameterNoMetadata =
+    { FunctionFormalParameter
+    | FieldFormalParameter
+    | SimpleFormalParameter
+    }
+FunctionFormalParameter = { "covariant"? ~ Type? ~ Identifier ~ FormalParameterPart }
+SimpleFormalParameter = { DeclaredIdentifier | "covariant"? ~ Identifier }
+DeclaredIdentifier = { "covariant"? ~ FinalConstVarOrType ~ Identifier }
+FieldFormalParameter = { FinalConstVarOrType? ~ "this" ~ "." ~ Identifier ~ FormalParameterPart? }
+
+// 9.2.2 Optional Formals
+
+DefaultFormalParameter = { NormalFormalParameter ~ ("=" ~ Expression)? }
+DefaultNamedParameter = { NormalFormalParameter ~ (("=" | ":") ~ Expression)? }
+
 // 10 Classes
 
 ClassDeclaration = { "abstract"? ~ "class" ~ Identifier ~ TypeParameters?}
 
 // 10.6 Constructors
+
+// 10.6.1 Generative Constructors
+
+ConstructorSignature = { ConstructorName ~ FormalParameterList }
+ConstructorName = { TypeIdentifier ~ ("." ~ Identifier)? }
+
+Redirection = { ":" ~ "this" ~ ("." ~ Identifier)? ~ Arguments }
+
+Initializers = { ":" ~ InitializerListEntry ~ ("," ~ InitializerListEntry)* }
+InitializerListEntry =
+    { "super" ~ Arguments
+    | "super" ~ "." ~ Identifier ~ Arguments
+    | FieldInitializer
+    | Assertion
+    }
+
+FieldInitializer = { ("this" ~ ".")? ~ Identifier ~ "=" ~ InitializerExpression }
+
+InitializerExpression = { ConditionalExpression | Cascade }
 
 // 10.6.2 Factories
 
@@ -36,6 +114,117 @@ Metadatum = { Identifier | QualifiedName | ConstructorDesignation ~ Arguments }
 
 // 17 Expressions
 
+Expression =
+    { AssignableExpression ~ AssignmentOperator ~ Expression
+    | ConditionalExpression
+    | Cascade
+    | ThrowExpression
+    }
+ExpressionWithoutCascade =
+    { AssignableExpression ~ AssignmentOperator ~ ExpressionWithoutCascade
+    | ConditionalExpression
+    | ThrowExpressionWithoutCascade
+    }
+ExpressionList = { Expression ~ ("," ~ Expression)* }
+Primary =
+    { ThisExpression
+    | FunctionExpression
+    | Literal
+    | Identifier
+    | NewExpression
+    | ConstObjectExpression
+    | ConstructorInvocation
+    | "(" ~ Expression ~ ")"
+    }
+Literal =
+    { NullLiteral
+    | BooleanLiteral
+    | NumericalLiteral
+    | StringLiteral
+    | SymbolLiteral
+    | ListLiteral
+    | SetOrMapLiteral
+    }
+
+// 17.4 Null
+
+NullLiteral = { "null" }
+
+// 17.5 Numbers
+
+NumericalLiteral = { Number | HexNumber }
+Number =
+    @{ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? ~ Exponent?
+    | "." ~ ASCII_DIGIT+ ~ Exponent?
+    }
+Exponent = @{ ^"e" ~ ("+" | "-")? ~ ASCII_DIGIT+ }
+HexNumber = @{ ^"0x" ~ ASCII_HEX_DIGIT+ }
+
+// 17.6 Booleans
+
+BooleanLiteral = { "true" | "false" }
+
+// 17.7 Strings
+
+StringLiteral = { (MultilineString | SingleLineString)+ }
+SingleLineString =
+    { RawSingleLineString
+    | SingleLineStringSqBeginEnd
+    | SingleLineStringSqBeginMid ~ Expression ~ (SingleLineStringSqMidMid ~ Expression)* ~ SingleLineStringSqMidEnd
+    | SingleLineStringDqBeginEnd
+    | SingleLineStringDqBeginMid ~ Expression ~ (SingleLineStringDqMidMid ~ Expression)* ~ SingleLineStringDqMidEnd
+    }
+RawSingleLineString =
+    @{ "r" ~ "'" ~ (!("'" | "\r" | "\n") ~ ANY)* ~ "'"
+    | "r" ~ "\"" ~ (!("\"" | "\r" | "\n") ~ ANY)* ~ "\""
+    }
+
+StringContentCommon =
+    @{ !("\\" | "'" | "\"" | "$" | "\r" | "\n") ~ ANY
+    | EscapeSequence
+    | "\\" ~ !("n" | "r" | "b" | "t" | "v" | "x" | "u" | "\r" | "\n")
+    | SimpleStringInterpolation
+    }
+
+StringContentSq = @{ StringContentCommon | "\"" }
+SingleLineStringSqBeginEnd = { "'" ~ StringContentSq* ~ "'" }
+SingleLineStringSqBeginMid = { "'" ~ StringContentSq* ~ "${" }
+SingleLineStringSqMidMid = { "}" ~ StringContentSq* ~ "${" }
+SingleLineStringSqMidEnd = { "}" ~ StringContentSq* ~ "'" }
+
+StringContentDq = { StringContentCommon | "'" }
+SingleLineStringDqBeginEnd = { "\"" ~ StringContentDq* ~ "\"" }
+SingleLineStringDqBeginMid = { "\"" ~ StringContentDq* ~ "${" }
+SingleLineStringDqMidMid = { "}" ~ StringContentDq* ~ "${" }
+SingleLineStringDqMidEnd = { "}" ~ StringContentDq* ~ "\"" }
+
+// 17.10 Throw
+
+ThrowExpression = { "throw" ~ Expression }
+ThrowExpressionWithoutCascade = { "throw" ~ ExpressionWithoutCascade }
+
+// 17.11 Function Expression
+
+FunctionExpression = { FormalParameterPart ~ FunctionExpressionBody }
+FunctionExpressionBody =
+    { "async"? ~ "=>" ~ Expression
+    | ("async" ~ "*"? | "sync" ~ "*")? ~ Block
+    }
+
+// 17.12 This
+
+ThisExpression = { "this" }
+
+// 17.13 Instance Creation
+
+// 17.13.1 New
+
+NewExpression = { "new" ~ ConstructorDesignation ~ Arguments }
+
+// 17.13.2 Const
+
+ConstObjectExpression = { "const" ~ ConstructorDesignation ~ Arguments }
+
 // 17.15 Function Invocation
 
 // 17.15.1 Actual Argument Lists
@@ -43,9 +232,158 @@ Metadatum = { Identifier | QualifiedName | ConstructorDesignation ~ Arguments }
 Arguments = { "(" ~ (ArgumentList ~ ","?)? ~ ")" }
 ArgumentList =
     { NamedArgument ~ ("," ~ NamedArgument)*
-    | expressionList ~ ("," ~ NamedArgument)*
+    | ExpressionList ~ ("," ~ NamedArgument)*
     }
 NamedArgument = { Label ~ Expression }
+
+// 17.20.2 Cascades
+
+Cascade =
+    { Cascade ~ ".." ~ CascadeSection
+    | ConditionalExpression ~ ".." ~ CascadeSection
+    }
+CascadeSection = { CascadeSelector ~ CascadeSectionTail }
+CascadeSelector = { "[" ~ Expression ~ "]" | Identifier }
+CascadeSectionTail =
+    { CascadeAssignment
+    | Selector* ~ (AssignableSelector ~ CascadeAssignment)?
+    }
+CascadeAssignment = { AssignmentOperator ~ ExpressionWithoutCascade }
+
+// 17.22 Assignment
+
+AssignmentOperator = { "=" | CompoundAssignmentOperator }
+CompoundAssignmentOperator =
+    { "*="
+    | "/="
+    | "~/="
+    | "%="
+    | "+="
+    | "-="
+    | "<<="
+    | ">>>="
+    | ">>="
+    | "&="
+    | "^="
+    | "|="
+    | "??="
+    }
+
+// 17.23 Conditional
+
+ConditionalExpression = { IfNullExpression ~ ("?" ~ ExpressionWithoutCascade ~ ":" ~ ExpressionWithoutCascade)? }
+
+// 17.24 If-null Expressions
+
+IfNullExpression = { LogicalOrExpression ~ ("??" ~ LogicalOrExpression)* }
+
+// 17.25 Logical Boolean Expressions
+
+LogicalOrExpression = { LogicalAndExpression ~ ("||" ~ LogicalAndExpression)* }
+LogicalAndExpression = { EqualityExpression ~ ("&&" ~ EqualityExpression)* }
+
+// 17.26 Equality
+
+EqualityExpression =
+    { RelationalExpression ~ (EqualityOperator ~ RelationalExpression)?
+    | "super" ~ EqualityOperator ~ RelationalExpression
+    }
+EqualityOperator = { "==" | "!=" }
+
+// 17.27 Relational Expressions
+
+RelationalExpression =
+    { BitwiseOrExpression ~ (TypeTest | TypeCast | RelationalOperator ~ BitwiseOrExpression)?
+    | "super" ~ RelationalOperator ~ BitwiseOrExpression
+    }
+RelationalOperator = { ">=" | ">" | "<=" | "<" }
+
+// 17.28 Bitwise Expressions
+
+BitwiseOrExpression =
+    { BitwiseXorExpression ~ ("|" ~ BitwiseXorExpression)*
+    | "super" ~ ("|" ~ BitwiseXorExpression)+
+    }
+BitwiseXorExpression =
+    { BitwiseAndExpression ~ ("^" ~ BitwiseAndExpression)*
+    | "super" ~ ("^" ~ BitwiseAndExpression)+
+    }
+BitwiseAndExpression =
+    { ShiftExpression ~ ("&" ~ ShiftExpression)*
+    | "super" ~ ("&" ~ ShiftExpression)+
+    }
+BitwiseOperator = { "&" | "^" | "|" }
+
+// 17.29 Shift
+
+ShiftExpression =
+    { AdditiveExpression ~ (ShiftOperator ~ AdditiveExpression)*
+    | "super" ~ (ShiftOperator ~ AdditiveExpression)+
+    }
+ShiftOperator = { "<<" | ">>>" | ">>" }
+
+// 17.30 Additive Expressions
+
+AdditiveExpression =
+    { MultiplicativeExpression ~ (AdditiveOperator ~ MultiplicativeExpression)*
+    | "super" ~ (AdditiveOperator ~ MultiplicativeExpression)+
+    }
+AdditiveOperator = { "+" | "-" }
+
+// 17.31 Multiplicative Expressions
+
+MultiplicativeExpression =
+    { UnaryExpression ~ (MultiplicativeOperator ~ UnaryExpression)*
+    | "super" ~ (MultiplicativeOperator ~ UnaryExpression)+
+    }
+MultiplicativeOperator = { "*" | "/" | "%" | "~/" }
+
+// 17.32 Unary Expressions
+
+UnaryExpression =
+    { PrefixOperator ~ UnaryExpression
+    | AwaitExpression
+    | PostfixExpression
+    | (MinusOperator | TildeOperator) ~ "super"
+    | IncrementOperator ~ AssignableExpression
+    }
+PrefixOperator = { MinusOperator | NegationOperator | TildeOperator }
+MinusOperator = { "-" }
+NegationOperator = { "!" }
+TildeOperator = { "~" }
+
+// 17.33 Await Expression
+
+AwaitExpression = { "await" | UnaryExpression }
+
+// 17.34 Postfix Expressions
+
+PostfixExpression =
+    { AssignableExpression ~ PostfixOperator
+    | Primary ~ Selector*
+    }
+PostfixOperator = { IncrementOperator }
+ConstructorInvocation = { TypeName ~ TypeArguments ~ "." ~ Identifier ~ Arguments }
+Selector = { "!" | AssignableSelector | ArgumentPart }
+ArgumentPart = { TypeArguments? ~ Arguments }
+IncrementOperator = { "++" | "--" }
+
+// 17.35 Assignable Expressions
+
+AssignableExpression =
+    { Primary ~ AssignableSelectorPart
+    | "super" ~ UnconditionalAssignableSelector
+    | Identifier
+    }
+AssignableSelectorPart = { Selector* ~ AssignableSelector }
+UnconditionalAssignableSelector =
+    { "[" ~ Expression ~ "]"
+    | "." ~ Identifier
+    }
+AssignableSelector =
+    { UnconditionalAssignableSelector
+    | "?." ~ Identifier
+    }
 
 // 17.37 Identifier Reference
 
@@ -84,11 +422,122 @@ QualifiedName =
     | TypeIdentifier ~ "." ~ TypeIdentifier ~ Identifier
     }
 
+// 17.38 Type Test
+
+TypeTest = {IsOperator ~ TypeNotVoid}
+IsOperator = { "is" ~ "!"? }
+
+// 17.39 Type Cast
+
+TypeCast = { AsOperator ~ TypeNotVoid }
+AsOperator = { "as" }
+
 // 18 Statements
+
+Statements = { Statement* }
+Statement = { Label* ~ NonLabelledStatement }
+NonLabelledStatement =
+    { Block
+    | LocalVariableDeclaration
+    | ForStatement
+    | WhileStatement
+    | DoStatement
+    | SwitchStatement
+    | IfStatement
+    | RethrowStatement
+    | TryStatement
+    | BreakStatement
+    | ContinueStatement
+    | ReturnStatement
+    | YieldStatement
+    | YieldEachStatement
+    | ExpressionStatement
+    | AssertStatement
+    | LocalFunctionDeclaration
+    }
+
+// 18.2 Expression Statements
+
+ExpressionStatement = { Expression? ~ ";" }
+
+// 18.3 Local Variable Declaration
+
+LocalVariableDeclaration = { Metadata ~ InitializedVariableDeclaration ~ ";" }
+
+// 18.4 Local Function Declaration
+
+LocalFunctionDeclaration = { Metadata ~ FunctionSignature ~ FunctionBody }
+
+// 18.5 If
+
+IfStatement = { "if" ~ "(" ~ Expression ~ ")" ~ Statement ~ ("else" ~ Statement)? }
+
+// 18.6 For
+
+ForStatement = { "await"? ~ "for" ~ "(" ~ ForLoopParts ~ ")" ~ Statement }
+ForLoopParts =
+    { ForInitializerStatement ~ Expression? ~ ";" ~ ExpressionList?
+    | Metadata ~ DeclaredIdentifier ~ "in" ~ Expression
+    | Identifier ~ "in" ~ Expression
+    }
+ForInitializerStatement = { LocalVariableDeclaration | Expression? ~ ";" }
+
+// 18.7 While
+
+WhileStatement = { "while" ~ "(" ~ Expression ~ ")" ~ Statement }
+
+// 18.8 Do
+
+DoStatement = { "do" ~ Statement ~ "while" ~ "(" ~ Expression ~ ")" ~ ";" }
+
+// 18.9 Switch
+
+SwitchStatement = { "switch" ~ "(" ~ Expression ~ ")" ~ "{" ~ SwitchCase* ~ DefaultCase? ~ "}" }
+SwitchCase = { Label* ~ "case" ~ Expression ~ ":" ~ Statements }
+DefaultCase = { Label* ~ "default" ~ ":" ~ Statements }
+
+// 18.10 Rethrow
+
+RethrowStatement = { "rethrow" ~ ";" }
+
+// 18.11 Try
+
+TryStatement = { "try" ~ Block ~ (OnPart+ ~ FinallyPart? | FinallyPart) }
+OnPart =
+    { CatchPart ~ Block
+    | "on" ~ TypeNotVoid ~ CatchPart? ~ Block
+    }
+CatchPart = { "catch" ~ "(" ~ Identifier ~ ("," ~ Identifier)? ~ ")" }
+FinallyPart = { "finally" ~ Block }
+
+// 18.12 Return
+
+ReturnStatement = { "return" ~ Expression? ~ ";" }
 
 // 18.13 Labels
 
 Label = { Identifier ~ ":" }
+
+// 18.14 Break
+
+BreakStatement = { "break" ~ Identifier? ~ ";" }
+
+// 18.15 Continue
+
+ContinueStatement = { "continue" ~ Identifier? ~ ";" }
+
+// 18.16 Yield
+
+YieldStatement = { "yield" ~ Expression ~ ";" }
+
+// 18.17 Yield-Each
+
+YieldEachStatement = { "yield" ~ "*" ~ Expression ~ ";" }
+
+// 18.18 Assert
+
+AssertStatement = { Assertion ~ ";" }
+Assertion = { "assert" ~ "(" ~ Expression ~ ("," ~ Expression)? ~ ","? ~ ")" }
 
 // 20 Types
 
