@@ -63,7 +63,50 @@ DefaultNamedParameter = { NormalFormalParameter ~ (("=" | ":") ~ Expression)? }
 
 // 10 Classes
 
-ClassDeclaration = { "abstract"? ~ "class" ~ Identifier ~ TypeParameters?}
+ClassDeclaration =
+    { "abstract"? ~ "class" ~ Identifier ~ TypeParameters? ~ Superclass? ~ Interfaces? ~ "{" ~ (Metadata ~ ClassMemberDeclaration)* ~ "}"
+    | "abstract"? ~ "class" ~ MixinApplicationClass
+    }
+TypeNotVoidList = { TypeNotVoid ~ ("," ~ TypeNotVoid)* }
+MethodSignature =
+    { ConstructorSignature ~ Initializers?
+    | FactoryConstructorSignature
+    | "static"? ~ FunctionSignature
+    | "static"? ~ GetterSignature
+    | "static"? ~ SetterSignature
+    | OperatorSignature
+    }
+
+Declaration =
+    { "extarnal" ~ FactoryConstructorSignature
+    | "external" ~ ConstantConstructorSignature
+    | "external" ~ ConstructorSignature
+    | ("external" ~ "static"?)? ~ GetterSignature
+    | ("external" ~ "static"?)? ~ SetterSignature
+    | ("external" ~ "static"?)? ~ FunctionSignature
+    | "external"? ~ OperatorSignature
+    | "static" ~ "const" ~ Type? ~ StaticFinalDeclarationList
+    | "static" ~ "final" ~ Type? ~ StaticFinalDeclarationList
+    | "static" ~ "final" ~ Type? ~ InitializedIdentifierList
+    | "static" ~ VarOrType ~ InitializedIdentifierList
+    | "covariant" ~ VarOrType ~ InitializedIdentifierList
+    | "final" ~ Type? ~ InitializedIdentifierList
+    | VarOrType ~ InitializedIdentifierList
+    | ConstantConstructorSignature ~ (Redirection | Initializers)?
+    }
+
+// 10.1.1 Operators
+
+OperatorSignature = { Type? ~ "operator" ~ Operator ~ FormalParameterList }
+Operator = { "~" | BinaryOperator | "[]" | "[]=" }
+BinaryOperator =
+    { MultiplicativeOperator
+    | AdditiveOperator
+    | ShiftOperator
+    | RelationalOperator
+    | "=="
+    | BitwiseOperator
+    }
 
 // 10.6 Constructors
 
@@ -197,6 +240,70 @@ SingleLineStringDqBeginEnd = { "\"" ~ StringContentDq* ~ "\"" }
 SingleLineStringDqBeginMid = { "\"" ~ StringContentDq* ~ "${" }
 SingleLineStringDqMidMid = { "}" ~ StringContentDq* ~ "${" }
 SingleLineStringDqMidEnd = { "}" ~ StringContentDq* ~ "\"" }
+
+MultilineString =
+    { RawMultiLineString
+    | MultiLineStringSqBeginEnd
+    | MultiLineStringSqBeginMid ~ Expression ~ (MultiLineStringSqMidMid ~ Expression)* ~ MultiLineStringSqMidEnd
+    | MultiLineStringDqBeginEnd
+    | MultiLineStringDqBeginMid ~ Expression ~ (MultiLineStringDqMidMid ~ Expression)* ~ MultiLineStringDqMidEnd
+    }
+RawMultiLineString =
+    { "r" ~ "'''" ~ (!"'''" ~ ANY)* ~ "'''"
+    | "r" ~ "\"\"\"" ~ (!"\"\"\"" ~ ANY)* ~ "\"\"\""
+    }
+
+QuotesSq = { "'" | "''" }
+StringContentTsq = { QuotesSq ~ (StringContentCommon | "\"" | "\r" | "\n") }
+MultiLineStringSqBeginEnd = { "'''" ~ StringContentTsq* ~ "'''" }
+MultiLineStringSqBeginMid = { "'''" ~ StringContentTsq* ~ QuotesSq ~ "${" }
+MultiLineStringSqMidMid = { "}" ~ StringContentTsq* ~ QuotesSq ~ "${" }
+MultiLineStringSqMidEnd = { "}" ~ StringContentTsq* ~ "'''" }
+
+QuotesDq = { "\"" | "\"\"" }
+StringContentTdq = { QuotesDq ~ (StringContentCommon | "'" | "\r" | "\n") }
+MultiLineStringDqBeginEnd = { "\"\"\"" ~ StringContentTdq* ~ "\"\"\"" }
+MultiLineStringDqBeginMid = { "\"\"\"" ~ StringContentTdq* ~ QuotesDq ~ "${" }
+MultiLineStringDqMidMid = { "}" ~ StringContentTdq* ~ QuotesDq ~ "${" }
+MultiLineStringDqMidEnd = { "}" ~ StringContentTdq* ~ "\"\"\"" }
+
+EscapeSequence =
+    { "\\n" | "\\r" | "\\f" | "\\b" | "\\t" | "\\v"
+    | "\\x" ~ ASCII_HEX_DIGIT ~ ASCII_HEX_DIGIT
+    | "\\u" ~ ASCII_HEX_DIGIT ~ ASCII_HEX_DIGIT ~ ASCII_HEX_DIGIT ~ ASCII_HEX_DIGIT
+    | "\\u{" ~ HexDigitSequence ~ "}"
+    }
+HexDigitSequence = @{ HexDigitSequence{1, 6} }
+
+// 17.7.1 String Interpolation
+
+StringInterpolation =
+    { SimpleStringInterpolation
+    | "${" ~ Expression ~ "}"
+    }
+SimpleStringInterpolation = { "$" ~ IdentifierNoDollar }
+
+// 17.8 Symbols
+
+SymbolLiteral = { "#" ~ (Operator | (Identifier ~ ("." ~ Identifier)*)) }
+
+// 17.9 Collection Literals
+
+ListLiteral = { "const"? ~ TypeArguments? ~ "[" ~ Elements? ~ "]" }
+SetOrMapLiteral = { "const"? ~ TypeArguments? ~ "{" ~ Elements? ~ "}" }
+Elements = { Element ~ ("," ~ Element)* ~ ","? }
+Element =
+    { ExpressionElement
+    | MapElement
+    | SpreadElement
+    | IfElement
+    | ForElement
+    }
+ExpressionElement = { Expression }
+MapElement = { Expression ~ ":" ~ Expression }
+SpreadElement = { ("..." | "...?") ~ Expression }
+IfElement = { "if" ~ "(" ~ Expression ~ ")" ~ Element ~ ("else" ~ Element)? }
+ForElement = { "await"? ~ "for" ~ "(" ~ ForLoopParts ~ ")" ~ Element }
 
 // 17.10 Throw
 
@@ -411,7 +518,7 @@ BuiltInIdentifier =
     | "static"
     | "typedef"
     }
-IdentifierNoDollar = { IdentifierStartNoDollar ~ IdentifierPartNoDollar* }
+IdentifierNoDollar = @{ IdentifierStartNoDollar ~ IdentifierPartNoDollar* }
 IdentifierStart = { IdentifierStartNoDollar | "$" }
 IdentifierStartNoDollar = { ASCII_ALPHA | "_" }
 IdentifierPartNoDollar = { IdentifierStartNoDollar | ASCII_DIGIT }
