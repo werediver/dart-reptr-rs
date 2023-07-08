@@ -1,1 +1,2 @@
+mod dart;
 mod parser;
