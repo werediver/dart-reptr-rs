@@ -95,7 +95,7 @@ fn try_mmap_parse(path: &Path) -> io::Result<()> {
     let content =
         std::str::from_utf8(&content).map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
     // let content = unsafe { std::str::from_utf8_unchecked(&content) };
-    let (_, _items) = dart_parser::parse(&content)
+    let _items = dart_parser::parse(&content)
         .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))
         .context_lazy(|| format!("Cannot parse file at path {path:?}"))?;
 
