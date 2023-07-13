@@ -7,23 +7,32 @@ use nom::{
     IResult,
 };
 
+/// Parse a single- or double-quoted string literal without escape-sequences.
+///
+/// Any backslash in the literal makes the parser fail.
+///
+/// String interpolation syntax is not recognized and is consumed as a part of
+/// the literal, as long as it doesn't make the parser fail due to nested string
+/// literals.
+///
+/// Return the body of the string without the enclosing quotes.
 pub fn string_simple(s: &str) -> IResult<&str, &str> {
     let dq = preceded(
         tag("\""),
         cut(terminated(
-            many0_count(alt((tag("\\\""), is_not("\"\r\n")))),
+            recognize(many0_count(is_not("\\\"\r\n"))),
             tag("\""),
         )),
     );
     let sq = preceded(
         tag("'"),
         cut(terminated(
-            many0_count(alt((tag("\\'"), is_not("'\r\n")))),
+            recognize(many0_count(is_not("\\'\r\n"))),
             tag("'"),
         )),
     );
 
-    recognize(alt((dq, sq)))(s)
+    alt((dq, sq))(s)
 }
 
 #[cfg(test)]
@@ -32,10 +41,14 @@ mod tests {
 
     #[test]
     fn string_simple_test() {
-        let sq = r#""as\"${df}'gh'\"x"#;
-        assert_eq!(string_simple(sq), Ok(("x", sq)));
+        assert_eq!(
+            string_simple(r#""as${df}'gh'"x"#),
+            Ok(("x", r#"as${df}'gh'"#))
+        );
 
-        let dq = r#"'as\'${df}"gh"\'x"#;
-        assert_eq!(string_simple(dq), Ok(("x", dq)));
+        assert_eq!(
+            string_simple(r#"'as${df}"gh"'x"#),
+            Ok(("x", r#"as${df}"gh""#))
+        );
     }
 }
