@@ -1,9 +1,11 @@
-use std::{env, io, path::Path};
+use std::{env, fs, io, path::Path};
 
 mod error_context;
 mod read_dir_ext;
 
 use read_dir_ext::ReadDirExt;
+
+use crate::error_context::ErrorContext;
 
 fn main() -> io::Result<()> {
     let cwd = env::current_dir()?;
@@ -27,19 +29,75 @@ fn main() -> io::Result<()> {
 
             Ok(context)
         },
-        |context, path| Ok(context.map(|context| (context.clone(), path))),
+        |context, path| {
+            Ok(context.and_then(|context| {
+                if path
+                    .extension()
+                    .and_then(|s| s.to_str())
+                    .is_some_and(|ext| ext == "dart")
+                {
+                    Some((context.clone(), path))
+                } else {
+                    None
+                }
+            }))
+        },
     );
+
+    let mut success_count = 0;
+    let mut total_count = 0;
 
     for entry in read_dir_ext {
         match entry {
-            Ok((context, path)) => {
-                println!("[{context:?}] {path:?}");
+            Ok((_context, path)) => {
+                total_count += 1;
+                let result = try_load_parse(&path);
+                // let result = try_mmap_parse(&path);
+                match result {
+                    Ok(_) => {
+                        success_count += 1;
+                        // println!("[Success] [{context}] {path:?}");
+                        print!("*");
+                    }
+                    Err(_) => {
+                        // println!("[Failure] [{context}] {path:?}");
+                        print!(" ");
+                    }
+                }
             }
             Err(err) => {
                 println!("{err}");
             }
         }
     }
+
+    println!(
+        "Success / total: {success_count} / {total_count} ({})",
+        success_count as f64 / total_count as f64
+    );
+
+    Ok(())
+}
+
+fn try_load_parse(path: &Path) -> io::Result<()> {
+    let content =
+        fs::read_to_string(&path).context_lazy(|| format!("Cannot read file at path {path:?}"))?;
+    let _items = dart_parser::parse(&content)
+        .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))
+        .context_lazy(|| format!("Cannot parse file at path {path:?}"))?;
+
+    Ok(())
+}
+
+fn try_mmap_parse(path: &Path) -> io::Result<()> {
+    let f = fs::File::open(&path).context_lazy(|| format!("Cannot open file at path {path:?}"))?;
+    let content = unsafe { memmap2::Mmap::map(&f)? };
+    let content =
+        std::str::from_utf8(&content).map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
+    // let content = unsafe { std::str::from_utf8_unchecked(&content) };
+    let (_, _items) = dart_parser::parse(&content)
+        .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))
+        .context_lazy(|| format!("Cannot parse file at path {path:?}"))?;
 
     Ok(())
 }
