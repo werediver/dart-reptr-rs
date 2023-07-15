@@ -9,8 +9,8 @@ use nom::{
     bytes::complete::{is_not, tag},
     combinator::{cut, eof, map, opt, recognize},
     multi::many0,
-    sequence::{pair, preceded, tuple},
-    IResult,
+    sequence::{pair, preceded, terminated, tuple},
+    IResult, Parser,
 };
 
 use crate::{
@@ -22,9 +22,9 @@ use self::string::string_simple;
 
 pub fn parse(s: &str) -> IResult<&str, Vec<Dart>> {
     let (s, items) = many0(alt((
-        map(alt((spbr, comment)), Dart::Verbatim),
-        map(import, Dart::Import),
-        map(class, Dart::Class),
+        alt((spbr, comment)).map(Dart::Verbatim),
+        import.map(Dart::Import),
+        class.map(Dart::Class),
     )))(s)?;
     let (s, _) = eof(s)?;
 
@@ -38,11 +38,10 @@ fn comment(s: &str) -> IResult<&str, &str> {
 fn import(s: &str) -> IResult<&str, Import> {
     preceded(
         pair(tag("import"), spbr),
-        cut(map(
-            tuple((string_simple, opt(spbr), tag(";"))),
-            |(s, _, _)| Import { target: s },
-        )),
-    )(s)
+        cut(terminated(string_simple, pair(opt(spbr), tag(";")))),
+    )
+    .map(|target| Import { target })
+    .parse(s)
 }
 
 #[cfg(test)]

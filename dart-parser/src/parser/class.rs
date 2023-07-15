@@ -1,10 +1,10 @@
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    combinator::{map, opt, value},
+    combinator::{cut, map, opt, value},
     multi::{fold_many0, separated_list1},
     sequence::{pair, preceded, terminated},
-    IResult,
+    IResult, Parser,
 };
 
 use crate::dart::{
@@ -55,13 +55,14 @@ fn class_modifier(s: &str) -> IResult<&str, ClassModifier> {
 }
 
 fn extends(s: &str) -> IResult<&str, &str> {
-    preceded(pair(tag("extends"), sp), identifier)(s)
+    preceded(pair(tag("extends"), sp), cut(identifier))(s)
 }
 
 fn class_property(s: &str) -> IResult<&str, ClassMemberModifierSet> {
-    map(separated_list1(sp, class_member_modifier), |modifiers| {
-        modifiers.into_iter().collect::<ClassMemberModifierSet>()
-    })(s)
+    // TODO: Do not use `Vec` here, implement like `class_modifier_set()`.
+    separated_list1(sp, class_member_modifier)
+        .map(|modifiers| modifiers.into_iter().collect::<ClassMemberModifierSet>())
+        .parse(s)
 }
 
 fn class_member_modifier(s: &str) -> IResult<&str, ClassMemberModifier> {
