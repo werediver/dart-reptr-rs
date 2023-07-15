@@ -1,8 +1,9 @@
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    combinator::{map, value},
-    multi::separated_list1,
+    combinator::{map, opt, value},
+    multi::{fold_many0, separated_list1},
+    sequence::{pair, preceded, terminated},
     IResult,
 };
 
@@ -13,26 +14,32 @@ use crate::dart::{
 use super::common::*;
 
 pub fn class(s: &str) -> IResult<&str, Class> {
-    let (s, modifiers) = class_modifier_set(s)?;
-    let (s, _) = sp(s)?;
+    let (s, modifiers) = terminated(class_modifier_set, spbr)(s)?;
     let (s, name) = identifier(s)?;
-    let (s, _) = sp(s).unwrap_or((s, ""));
-    let (s, body) = block(s)?;
+    let (s, extends) = opt(preceded(spbr, extends))(s)?;
+    let (s, body) = preceded(opt(spbr), block)(s)?;
 
     Ok((
         s,
         Class {
             modifiers,
             name,
+            extends,
             body,
         },
     ))
 }
 
 fn class_modifier_set(s: &str) -> IResult<&str, ClassModifierSet> {
-    map(separated_list1(sp, class_modifier), |modifiers| {
-        modifiers.into_iter().collect::<ClassModifierSet>()
-    })(s)
+    let (s, modifier) = class_modifier(s)?;
+
+    let modifiers = ClassModifierSet::from_iter([modifier]);
+
+    fold_many0(
+        preceded(spbr, class_modifier),
+        move || modifiers,
+        |modifiers, modifier| modifiers.with(modifier),
+    )(s)
 }
 
 fn class_modifier(s: &str) -> IResult<&str, ClassModifier> {
@@ -45,6 +52,10 @@ fn class_modifier(s: &str) -> IResult<&str, ClassModifier> {
         value(ClassModifier::Sealed, tag("sealed")),
         value(ClassModifier::Mixin, tag("mixin")),
     ))(s)
+}
+
+fn extends(s: &str) -> IResult<&str, &str> {
+    preceded(pair(tag("extends"), sp), identifier)(s)
 }
 
 fn class_property(s: &str) -> IResult<&str, ClassMemberModifierSet> {
@@ -77,6 +88,27 @@ mod tests {
                 ClassModifierSet::from_iter(
                     [ClassModifier::Abstract, ClassModifier::Class].into_iter()
                 )
+            ))
+        );
+    }
+
+    #[test]
+    fn extends_test() {
+        assert_eq!(extends("extends Base "), Ok((" ", "Base")));
+    }
+
+    #[test]
+    fn class_test() {
+        assert_eq!(
+            class("class Record extends Base {}"),
+            Ok((
+                "",
+                Class {
+                    modifiers: ClassModifierSet::from_iter([ClassModifier::Class]),
+                    name: "Record",
+                    extends: Some("Base"),
+                    body: "{}"
+                }
             ))
         );
     }
