@@ -23,5 +23,6 @@ pub struct Import<'s> {
 pub struct Class<'s> {
     pub modifiers: ClassModifierSet,
     pub name: &'s str,
+    pub extends: Option<&'s str>,
     pub body: &'s str,
 }

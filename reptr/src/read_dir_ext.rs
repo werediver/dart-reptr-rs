@@ -50,19 +50,17 @@ where
                 } else {
                     self.current = None;
                 }
+            } else if let Some((context, path_buf)) = self.q.pop() {
+                let context =
+                    io::Result::Ok(context).or_else(|_| (self.map_dir)(None, &path_buf))?;
+                self.current = Some((
+                    context,
+                    fs::read_dir(&path_buf).context_lazy(|| {
+                        format!("`fs::read_dir()` returned error for path {path_buf:?}")
+                    })?,
+                ));
             } else {
-                if let Some((context, path_buf)) = self.q.pop() {
-                    let context =
-                        io::Result::Ok(context).or_else(|_| (self.map_dir)(None, &path_buf))?;
-                    self.current = Some((
-                        context,
-                        fs::read_dir(&path_buf).context_lazy(|| {
-                            format!("`fs::read_dir()` returned error for path {path_buf:?}")
-                        })?,
-                    ));
-                } else {
-                    return Ok(None);
-                }
+                return Ok(None);
             }
         }
     }
@@ -76,11 +74,9 @@ where
     type Item = io::Result<Item>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let result = match self.next_io_result() {
+        match self.next_io_result() {
             Ok(value) => value.map(Ok),
             Err(err) => Some(Err(err)),
-        };
-
-        result
+        }
     }
 }
