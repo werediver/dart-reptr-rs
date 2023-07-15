@@ -6,11 +6,12 @@ Dart repointer (`reptr`) ~~puts the sharp part in your Dart~~ aims to facilitate
 
 - Loading source files
   - Loading the complete file for parsing is fine
-  - Memory-mapping without UTF-8 validation may be a faster option, but is unsafe
-    - Can be supported as an option
+  - Memory-mapping is not faster per se
+    - May play nicely with a lazy tokenizer with lazy UTF-8 validation
 - Parsing
   - The parser is a _partial_ parser: it recognizes certain parts of the target language and can skip over the rest
   - Capturing slices of the source (`&str`) is extremely cheap (doesn't cause memory allocation); do that
+  - When feasible, avoid memory allocation (namely, the use of `Vec` and co.)
 - A tempting feature: in-place code generation
   - Requires accurate back-to-source transformation
 - Output formatting
