@@ -73,7 +73,7 @@ mod tests {
     }
 
     #[test]
-    fn basic() {
+    fn mixed_test() {
         assert_eq!(
             parse(DART_BASIC.trim_start()),
             Ok((
@@ -87,14 +87,16 @@ mod tests {
                     Dart::Verbatim("\n"),
                     Dart::Class(Class {
                         modifiers: ClassModifierSet::from_iter([ClassModifier::Class]),
-                        name: "Record1",
-                        body: "{\n  String field;\n}",
+                        name: "Base",
+                        extends: None,
+                        body: "{\n  String id;\n}",
                     }),
                     Dart::Verbatim("\n\n"),
                     Dart::Class(Class {
                         modifiers: ClassModifierSet::from_iter([ClassModifier::Class]),
-                        name: "Record2",
-                        body: "{\n  String field;\n}",
+                        name: "Record",
+                        extends: Some("Base"),
+                        body: "{\n  String name;\n}",
                     }),
                     Dart::Verbatim("\n")
                 ]
@@ -107,12 +109,12 @@ import 'dart:math';
 
 // A comment
 
-class Record1 {
-  String field;
+class Base {
+  String id;
 }
 
-class Record2 {
-  String field;
+class Record extends Base {
+  String name;
 }
 "#;
 }

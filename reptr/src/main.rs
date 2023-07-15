@@ -14,17 +14,15 @@ fn main() -> io::Result<()> {
         cwd,
         |context, path| {
             let dir_name = path.file_name().and_then(|s| s.to_str());
-            let context = if dir_name.is_some_and(|s| s.starts_with(".")) {
+            let context = if dir_name.is_some_and(|s| s.starts_with('.')) {
                 // Ignore dot-directories
                 None
             } else if context.is_some() {
                 context.cloned()
+            } else if is_dart_pkg(path)? {
+                dir_name.map(|s| s.to_owned())
             } else {
-                if is_dart_pkg(path)? {
-                    dir_name.map(|s| s.to_owned())
-                } else {
-                    None
-                }
+                None
             };
 
             Ok(context)
@@ -81,7 +79,7 @@ fn main() -> io::Result<()> {
 
 fn try_load_parse(path: &Path) -> io::Result<()> {
     let content =
-        fs::read_to_string(&path).context_lazy(|| format!("Cannot read file at path {path:?}"))?;
+        fs::read_to_string(path).context_lazy(|| format!("Cannot read file at path {path:?}"))?;
     let _items = dart_parser::parse(&content)
         .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))
         .context_lazy(|| format!("Cannot parse file at path {path:?}"))?;
@@ -90,12 +88,12 @@ fn try_load_parse(path: &Path) -> io::Result<()> {
 }
 
 fn try_mmap_parse(path: &Path) -> io::Result<()> {
-    let f = fs::File::open(&path).context_lazy(|| format!("Cannot open file at path {path:?}"))?;
+    let f = fs::File::open(path).context_lazy(|| format!("Cannot open file at path {path:?}"))?;
     let content = unsafe { memmap2::Mmap::map(&f)? };
     let content =
         std::str::from_utf8(&content).map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
     // let content = unsafe { std::str::from_utf8_unchecked(&content) };
-    let _items = dart_parser::parse(&content)
+    let _items = dart_parser::parse(content)
         .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))
         .context_lazy(|| format!("Cannot parse file at path {path:?}"))?;
 
