@@ -88,6 +88,7 @@ mod tests {
                         modifiers: ClassModifierSet::from_iter([ClassModifier::Class]),
                         name: "Base",
                         extends: None,
+                        implements: Vec::default(),
                         body: "{\n  String id;\n}",
                     }),
                     Dart::Verbatim("\n\n"),
@@ -95,6 +96,7 @@ mod tests {
                         modifiers: ClassModifierSet::from_iter([ClassModifier::Class]),
                         name: "Record",
                         extends: Some("Base"),
+                        implements: vec!["A", "B"],
                         body: "{\n  String name;\n}",
                     }),
                     Dart::Verbatim("\n")
@@ -112,7 +114,7 @@ class Base {
   String id;
 }
 
-class Record extends Base {
+class Record extends Base implements A, B {
   String name;
 }
 "#;
