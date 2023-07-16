@@ -3,7 +3,7 @@ use nom::{
     bytes::complete::tag,
     combinator::{cut, map, opt, value},
     multi::{fold_many0, separated_list1},
-    sequence::{pair, preceded, terminated},
+    sequence::{pair, preceded, terminated, tuple},
     IResult, Parser,
 };
 
@@ -17,6 +17,7 @@ pub fn class(s: &str) -> IResult<&str, Class> {
     let (s, modifiers) = terminated(class_modifier_set, spbr)(s)?;
     let (s, name) = identifier(s)?;
     let (s, extends) = opt(preceded(spbr, extends))(s)?;
+    let (s, implements) = opt(preceded(spbr, implements))(s)?;
     let (s, body) = preceded(opt(spbr), block)(s)?;
 
     Ok((
@@ -25,6 +26,7 @@ pub fn class(s: &str) -> IResult<&str, Class> {
             modifiers,
             name,
             extends,
+            implements: implements.unwrap_or(Vec::default()),
             body,
         },
     ))
@@ -55,7 +57,17 @@ fn class_modifier(s: &str) -> IResult<&str, ClassModifier> {
 }
 
 fn extends(s: &str) -> IResult<&str, &str> {
-    preceded(pair(tag("extends"), sp), cut(identifier))(s)
+    preceded(pair(tag("extends"), spbr), cut(identifier))(s)
+}
+
+fn implements(s: &str) -> IResult<&str, Vec<&str>> {
+    preceded(
+        pair(tag("implements"), spbr),
+        cut(separated_list1(
+            tuple((opt(spbr), tag(","), opt(spbr))),
+            identifier,
+        )),
+    )(s)
 }
 
 fn class_property(s: &str) -> IResult<&str, ClassMemberModifierSet> {
@@ -99,15 +111,24 @@ mod tests {
     }
 
     #[test]
+    fn implements_test() {
+        assert_eq!(
+            implements("implements A, B, C "),
+            Ok((" ", vec!["A", "B", "C"]))
+        );
+    }
+
+    #[test]
     fn class_test() {
         assert_eq!(
-            class("class Record extends Base {}"),
+            class("class Record extends Base implements A, B {}"),
             Ok((
                 "",
                 Class {
                     modifiers: ClassModifierSet::from_iter([ClassModifier::Class]),
                     name: "Record",
                     extends: Some("Base"),
+                    implements: vec!["A", "B"],
                     body: "{}"
                 }
             ))
