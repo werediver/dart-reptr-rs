@@ -9,6 +9,7 @@ use nom::{
 
 use crate::dart::{
     Class, ClassMemberModifier, ClassMemberModifierSet, ClassModifier, ClassModifierSet,
+    IdentifierExt,
 };
 
 use super::common::*;
@@ -56,16 +57,16 @@ fn class_modifier(s: &str) -> IResult<&str, ClassModifier> {
     ))(s)
 }
 
-fn extends(s: &str) -> IResult<&str, &str> {
-    preceded(pair(tag("extends"), spbr), cut(identifier))(s)
+fn extends(s: &str) -> IResult<&str, IdentifierExt> {
+    preceded(pair(tag("extends"), spbr), cut(identifier_ext))(s)
 }
 
-fn implements(s: &str) -> IResult<&str, Vec<&str>> {
+fn implements(s: &str) -> IResult<&str, Vec<IdentifierExt>> {
     preceded(
         pair(tag("implements"), spbr),
         cut(separated_list1(
             tuple((opt(spbr), tag(","), opt(spbr))),
-            identifier,
+            identifier_ext,
         )),
     )(s)
 }
@@ -107,14 +108,24 @@ mod tests {
 
     #[test]
     fn extends_test() {
-        assert_eq!(extends("extends Base "), Ok((" ", "Base")));
+        assert_eq!(
+            extends("extends Base "),
+            Ok((" ", IdentifierExt::name("Base")))
+        );
     }
 
     #[test]
     fn implements_test() {
         assert_eq!(
             implements("implements A, B, C "),
-            Ok((" ", vec!["A", "B", "C"]))
+            Ok((
+                " ",
+                vec![
+                    IdentifierExt::name("A"),
+                    IdentifierExt::name("B"),
+                    IdentifierExt::name("C")
+                ]
+            ))
         );
     }
 
@@ -127,8 +138,34 @@ mod tests {
                 Class {
                     modifiers: ClassModifierSet::from_iter([ClassModifier::Class]),
                     name: "Record",
-                    extends: Some("Base"),
-                    implements: vec!["A", "B"],
+                    extends: Some(IdentifierExt::name("Base")),
+                    implements: vec![IdentifierExt::name("A"), IdentifierExt::name("B")],
+                    body: "{}"
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn class_generic_test() {
+        assert_eq!(
+            class("class Record extends Base<T> implements A<Future<void>> {}"),
+            Ok((
+                "",
+                Class {
+                    modifiers: ClassModifierSet::from_iter([ClassModifier::Class]),
+                    name: "Record",
+                    extends: Some(IdentifierExt {
+                        name: "Base",
+                        type_args: vec![IdentifierExt::name("T")]
+                    }),
+                    implements: vec![IdentifierExt {
+                        name: "A",
+                        type_args: vec![IdentifierExt {
+                            name: "Future",
+                            type_args: vec![IdentifierExt::name("void")]
+                        }]
+                    }],
                     body: "{}"
                 }
             ))
