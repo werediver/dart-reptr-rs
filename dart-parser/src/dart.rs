@@ -23,7 +23,22 @@ pub struct Import<'s> {
 pub struct Class<'s> {
     pub modifiers: ClassModifierSet,
     pub name: &'s str,
-    pub extends: Option<&'s str>,
-    pub implements: Vec<&'s str>,
+    pub extends: Option<IdentifierExt<'s>>,
+    pub implements: Vec<IdentifierExt<'s>>,
     pub body: &'s str,
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub struct IdentifierExt<'s> {
+    pub name: &'s str,
+    pub type_args: Vec<IdentifierExt<'s>>,
+}
+
+impl<'s> IdentifierExt<'s> {
+    pub fn name(name: &'s str) -> Self {
+        Self {
+            name,
+            type_args: Vec::default(),
+        }
+    }
 }

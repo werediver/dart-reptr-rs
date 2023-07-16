@@ -95,8 +95,8 @@ mod tests {
                     Dart::Class(Class {
                         modifiers: ClassModifierSet::from_iter([ClassModifier::Class]),
                         name: "Record",
-                        extends: Some("Base"),
-                        implements: vec!["A", "B"],
+                        extends: Some(IdentifierExt::name("Base")),
+                        implements: vec![IdentifierExt::name("A"), IdentifierExt::name("B")],
                         body: "{\n  String name;\n}",
                     }),
                     Dart::Verbatim("\n")
