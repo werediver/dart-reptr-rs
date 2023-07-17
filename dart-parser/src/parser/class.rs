@@ -1,7 +1,7 @@
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    combinator::{cut, map, opt, value},
+    combinator::{cut, opt, value},
     multi::{fold_many0, separated_list1},
     sequence::{pair, preceded, terminated, tuple},
     IResult, Parser,
@@ -16,10 +16,10 @@ use super::common::*;
 
 pub fn class(s: &str) -> IResult<&str, Class> {
     let (s, modifiers) = terminated(class_modifier_set, spbr)(s)?;
-    let (s, name) = identifier(s)?;
-    let (s, extends) = opt(preceded(spbr, extends))(s)?;
-    let (s, implements) = opt(preceded(spbr, implements))(s)?;
-    let (s, body) = preceded(opt(spbr), block)(s)?;
+    let (s, name) = terminated(identifier, opt(spbr))(s)?;
+    let (s, extends) = opt(terminated(extends, spbr))(s)?;
+    let (s, implements) = opt(terminated(implements, spbr))(s)?;
+    let (s, body) = block(s)?;
 
     Ok((
         s,
