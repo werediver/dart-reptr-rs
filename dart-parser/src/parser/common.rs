@@ -3,8 +3,8 @@ use nom::{
     bytes::complete::{is_a, is_not, tag, take_while, take_while_m_n},
     character::complete::char,
     combinator::{cut, opt, recognize},
-    multi::{many0, separated_list1},
-    sequence::{delimited, pair, preceded, tuple},
+    multi::{fold_many0, separated_list1},
+    sequence::{pair, preceded, terminated, tuple},
     IResult, Parser,
 };
 
@@ -44,15 +44,11 @@ pub fn identifier_ext(s: &str) -> IResult<&str, IdentifierExt> {
     pair(
         identifier,
         opt(preceded(
-            opt(spbr),
-            delimited(
-                pair(tag("<"), opt(spbr)),
-                cut(separated_list1(
-                    tuple((opt(spbr), tag(","), opt(spbr))),
-                    identifier_ext,
-                )),
-                cut(pair(opt(spbr), tag(">"))),
-            ),
+            tuple((opt(spbr), tag("<"), opt(spbr))),
+            cut(terminated(
+                separated_list1(tuple((opt(spbr), tag(","), opt(spbr))), identifier_ext),
+                pair(opt(spbr), tag(">")),
+            )),
         )),
     )
     .map(|(name, args)| IdentifierExt {
@@ -63,10 +59,12 @@ pub fn identifier_ext(s: &str) -> IResult<&str, IdentifierExt> {
 }
 
 pub fn block(s: &str) -> IResult<&str, &str> {
-    recognize(delimited(
+    recognize(preceded(
         char('{'),
-        recognize(many0(alt((is_not("{}"), block)))),
-        char('}'),
+        cut(terminated(
+            recognize(fold_many0(alt((is_not("{}"), block)), || {}, |_, _| {})),
+            char('}'),
+        )),
     ))(s)
 }
 

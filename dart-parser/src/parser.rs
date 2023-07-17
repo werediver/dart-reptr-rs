@@ -1,5 +1,6 @@
 mod class;
 mod common;
+mod directive;
 mod string;
 
 use std::str;
@@ -7,9 +8,9 @@ use std::str;
 use nom::{
     branch::alt,
     bytes::complete::{is_not, tag},
-    combinator::{cut, eof, map, opt, recognize},
+    combinator::{eof, recognize},
     multi::many0,
-    sequence::{pair, preceded, terminated, tuple},
+    sequence::tuple,
     IResult, Parser,
 };
 
@@ -18,12 +19,12 @@ use crate::{
     parser::{class::class, common::*},
 };
 
-use self::string::string_simple;
+use self::directive::directive;
 
 pub fn parse(s: &str) -> IResult<&str, Vec<Dart>> {
     let (s, items) = many0(alt((
         alt((spbr, comment)).map(Dart::Verbatim),
-        import.map(Dart::Import),
+        directive.map(Dart::Directive),
         class.map(Dart::Class),
     )))(s)?;
     let (s, _) = eof(s)?;
@@ -35,17 +36,10 @@ fn comment(s: &str) -> IResult<&str, &str> {
     recognize(tuple((tag("//"), is_not("\r\n"), alt((br, eof)))))(s)
 }
 
-fn import(s: &str) -> IResult<&str, Import> {
-    preceded(
-        pair(tag("import"), spbr),
-        cut(terminated(string_simple, pair(opt(spbr), tag(";")))),
-    )
-    .map(|target| Import { target })
-    .parse(s)
-}
-
 #[cfg(test)]
 mod tests {
+    use crate::dart::directive::{Directive, Import};
+
     use super::*;
 
     #[test]
@@ -59,28 +53,20 @@ mod tests {
     }
 
     #[test]
-    fn import_test() {
-        assert_eq!(
-            import("import 'dart:math';x"),
-            Ok((
-                "x",
-                Import {
-                    target: "dart:math"
-                }
-            ))
-        );
-    }
-
-    #[test]
     fn mixed_test() {
         assert_eq!(
-            parse(DART_BASIC.trim_start()),
+            parse(DART_MIXED.trim_start()),
             Ok((
                 "",
                 vec![
-                    Dart::Import(Import {
-                        target: "dart:math"
-                    }),
+                    Dart::Directive(Directive::Import(Import::target("dart:math"))),
+                    Dart::Verbatim("\n"),
+                    Dart::Directive(Directive::Import(Import::target_as(
+                        "package:path/path.dart",
+                        "p"
+                    ))),
+                    Dart::Verbatim("\n\n"),
+                    Dart::Directive(Directive::Part("types.g.dart")),
                     Dart::Verbatim("\n\n"),
                     Dart::Verbatim("// A comment\n"),
                     Dart::Verbatim("\n"),
@@ -96,7 +82,19 @@ mod tests {
                         modifiers: ClassModifierSet::from_iter([ClassModifier::Class]),
                         name: "Record",
                         extends: Some(IdentifierExt::name("Base")),
-                        implements: vec![IdentifierExt::name("A"), IdentifierExt::name("B")],
+                        implements: vec![
+                            IdentifierExt {
+                                name: "A",
+                                type_args: vec![
+                                    IdentifierExt {
+                                        name: "Future",
+                                        type_args: vec![IdentifierExt::name("void")]
+                                    },
+                                    IdentifierExt::name("B")
+                                ]
+                            },
+                            IdentifierExt::name("C")
+                        ],
                         body: "{\n  String name;\n}",
                     }),
                     Dart::Verbatim("\n")
@@ -105,8 +103,11 @@ mod tests {
         );
     }
 
-    const DART_BASIC: &str = r#"
+    const DART_MIXED: &str = r#"
 import 'dart:math';
+import 'package:path/path.dart' as p;
+
+part 'types.g.dart';
 
 // A comment
 
@@ -114,7 +115,7 @@ class Base {
   String id;
 }
 
-class Record extends Base implements A, B {
+class Record extends Base implements A<Future<void>, B>, C {
   String name;
 }
 "#;
