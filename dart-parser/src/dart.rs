@@ -1,6 +1,7 @@
 mod class_member_modifier;
 mod class_modifier;
 pub mod directive;
+pub mod comment;
 
 pub use class_member_modifier::*;
 pub use class_modifier::*;
@@ -9,6 +10,7 @@ pub use class_modifier::*;
 pub enum Dart<'s> {
     Verbatim(&'s str),
     Directive(directive::Directive<'s>),
+    Comment(comment::Comment<'s>),
     Class(Class<'s>),
 }
 

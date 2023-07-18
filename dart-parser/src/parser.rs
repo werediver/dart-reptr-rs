@@ -1,30 +1,22 @@
 mod class;
+mod comment;
 mod common;
 mod directive;
 mod string;
 
 use std::str;
 
-use nom::{
-    branch::alt,
-    bytes::complete::{is_not, tag},
-    combinator::{eof, recognize},
-    multi::many0,
-    sequence::tuple,
-    IResult, Parser,
-};
+use nom::{branch::alt, combinator::eof, multi::many0, IResult, Parser};
 
-use crate::{
-    dart::*,
-    parser::{class::class, common::*},
-};
+use crate::{dart::*, parser::class::class};
 
-use self::directive::directive;
+use self::{comment::comments, common::spbr, directive::directive};
 
 pub fn parse(s: &str) -> IResult<&str, Vec<Dart>> {
     let (s, items) = many0(alt((
-        alt((spbr, comment)).map(Dart::Verbatim),
         directive.map(Dart::Directive),
+        spbr.map(Dart::Verbatim),
+        comments.map(Dart::Comment),
         class.map(Dart::Class),
     )))(s)?;
     let (s, _) = eof(s)?;
@@ -32,25 +24,15 @@ pub fn parse(s: &str) -> IResult<&str, Vec<Dart>> {
     Ok((s, items))
 }
 
-fn comment(s: &str) -> IResult<&str, &str> {
-    recognize(tuple((tag("//"), is_not("\r\n"), alt((br, eof)))))(s)
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::dart::directive::{Directive, Import};
+
+    use crate::dart::{
+        comment::Comment,
+        directive::{Directive, Import},
+    };
 
     use super::*;
-
-    #[test]
-    fn comment_test() {
-        assert_eq!(comment("// A comment\nx"), Ok(("x", "// A comment\n")));
-    }
-
-    #[test]
-    fn comment_eof_test() {
-        assert_eq!(comment("// A comment"), Ok(("", "// A comment")));
-    }
 
     #[test]
     fn mixed_test() {
@@ -68,8 +50,9 @@ mod tests {
                     Dart::Verbatim("\n\n"),
                     Dart::Directive(Directive::Part("types.g.dart")),
                     Dart::Verbatim("\n\n"),
-                    Dart::Verbatim("// A comment\n"),
-                    Dart::Verbatim("\n"),
+                    Dart::Comment(Comment::SingleLine("// A comment\n")),
+                    Dart::Comment(Comment::MultiLine("/*\nAnother comment\n*/")),
+                    Dart::Verbatim("\n\n"),
                     Dart::Class(Class {
                         modifiers: ClassModifierSet::from_iter([ClassModifier::Class]),
                         name: "Base",
@@ -110,6 +93,9 @@ import 'package:path/path.dart' as p;
 part 'types.g.dart';
 
 // A comment
+/*
+Another comment
+*/
 
 class Base {
   String id;
