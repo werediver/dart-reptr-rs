@@ -12,6 +12,9 @@ Dart repointer (`reptr`) ~~puts the sharp part in your Dart~~ aims to facilitate
   - The parser is a _partial_ parser: it recognizes certain parts of the target language and can skip over the rest
   - Capturing slices of the source (`&str`) is extremely cheap (doesn't cause memory allocation); do that
   - When feasible, avoid memory allocation (namely, the use of `Vec` and co.)
+  - Do not start parsing a construct with whitespace (e.g. the import-stmt. parser should start with consuming `import`, not whitespace)
+  - Do not consume the trailing whitespace after a construct (e.g. in `import 'dart:math';\n\n` do not consume `\n\n`)
+    - This will be more important for source transformation later on
 - A tempting feature: in-place code generation
   - Requires accurate back-to-source transformation
 - Output formatting
