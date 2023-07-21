@@ -2,4 +2,5 @@
 members = [
   "reptr",
   "dart-parser",
+  "tiny-set",
 ]
