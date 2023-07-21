@@ -1,24 +1,15 @@
-mod class_member_modifier;
-mod class_modifier;
+mod class;
 pub mod directive;
+mod member_modifier;
 
-pub use class_member_modifier::*;
-pub use class_modifier::*;
+pub use class::*;
+pub use member_modifier::*;
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum Dart<'s> {
     Verbatim(&'s str),
     Directive(directive::Directive<'s>),
     Class(Class<'s>),
-}
-
-#[derive(PartialEq, Eq, Debug)]
-pub struct Class<'s> {
-    pub modifiers: ClassModifierSet,
-    pub name: &'s str,
-    pub extends: Option<IdentifierExt<'s>>,
-    pub implements: Vec<IdentifierExt<'s>>,
-    pub body: &'s str,
 }
 
 #[derive(PartialEq, Eq, Debug)]

@@ -8,8 +8,7 @@ use nom::{
 };
 
 use crate::dart::{
-    Class, ClassMemberModifier, ClassMemberModifierSet, ClassModifier, ClassModifierSet,
-    IdentifierExt,
+    Class, ClassModifier, ClassModifierSet, IdentifierExt, MemberModifier, MemberModifierSet,
 };
 
 use super::common::*;
@@ -71,40 +70,9 @@ fn implements(s: &str) -> IResult<&str, Vec<IdentifierExt>> {
     )(s)
 }
 
-fn class_property(s: &str) -> IResult<&str, ClassMemberModifierSet> {
-    // TODO: Do not use `Vec` here, implement like `class_modifier_set()`.
-    separated_list1(sp, class_member_modifier)
-        .map(|modifiers| modifiers.into_iter().collect::<ClassMemberModifierSet>())
-        .parse(s)
-}
-
-fn class_member_modifier(s: &str) -> IResult<&str, ClassMemberModifier> {
-    alt((
-        value(ClassMemberModifier::External, tag("external")),
-        value(ClassMemberModifier::Static, tag("static")),
-        value(ClassMemberModifier::Const, tag("const")),
-        value(ClassMemberModifier::Final, tag("final")),
-        value(ClassMemberModifier::Late, tag("late")),
-        value(ClassMemberModifier::Covariant, tag("covariant")),
-    ))(s)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn class_modifiers_test() {
-        assert_eq!(
-            class_modifier_set("abstract class"),
-            Ok((
-                "",
-                ClassModifierSet::from_iter(
-                    [ClassModifier::Abstract, ClassModifier::Class].into_iter()
-                )
-            ))
-        );
-    }
 
     #[test]
     fn extends_test() {

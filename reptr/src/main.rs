@@ -70,7 +70,7 @@ fn main() -> io::Result<()> {
     }
 
     println!(
-        "Success / total: {success_count} / {total_count} ({})",
+        "\nSuccess / total: {success_count} / {total_count} ({:.4})",
         success_count as f64 / total_count as f64
     );
 

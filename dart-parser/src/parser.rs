@@ -1,6 +1,7 @@
 mod class;
 mod common;
 mod directive;
+mod member;
 mod string;
 
 use std::str;
