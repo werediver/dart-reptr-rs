@@ -125,14 +125,17 @@ mod tests {
                     name: "Record",
                     extends: Some(IdentifierExt {
                         name: "Base",
-                        type_args: vec![IdentifierExt::name("T")]
+                        type_args: vec![IdentifierExt::name("T")],
+                        is_nullable: false,
                     }),
                     implements: vec![IdentifierExt {
                         name: "A",
                         type_args: vec![IdentifierExt {
                             name: "Future",
-                            type_args: vec![IdentifierExt::name("void")]
-                        }]
+                            type_args: vec![IdentifierExt::name("void")],
+                            is_nullable: false,
+                        }],
+                        is_nullable: false,
                     }],
                     body: "{}"
                 }
