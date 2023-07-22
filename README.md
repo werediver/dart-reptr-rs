@@ -1,3 +1,5 @@
+[![Validation](https://github.com/werediver/dart-reptr-rs/actions/workflows/validate.yaml/badge.svg?event=push&branch=main)](https://github.com/werediver/dart-reptr-rs/actions/workflows/validate.yaml)
+
 # Dart repointer
 
 Dart repointer (`reptr`) ~~puts the sharp part in your Dart~~ aims to facilitate _fast_ code generation for Dart. It consists of [the tool itself](reptr/) and a [Dart parser library](dart-parser).
