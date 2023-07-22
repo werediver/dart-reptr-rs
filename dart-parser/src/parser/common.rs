@@ -40,8 +40,9 @@ pub fn identifier(s: &str) -> IResult<&str, &str> {
     ))(s)
 }
 
+/// Parse an identifier with type arguments and the nullability indicator (e.g. `Future<int>?`).
 pub fn identifier_ext(s: &str) -> IResult<&str, IdentifierExt> {
-    pair(
+    tuple((
         identifier,
         opt(preceded(
             tuple((opt(spbr), tag("<"), opt(spbr))),
@@ -50,10 +51,12 @@ pub fn identifier_ext(s: &str) -> IResult<&str, IdentifierExt> {
                 pair(opt(spbr), tag(">")),
             )),
         )),
-    )
-    .map(|(name, args)| IdentifierExt {
+        opt(preceded(opt(spbr), tag("?"))),
+    ))
+    .map(|(name, args, nullability_ind)| IdentifierExt {
         name,
         type_args: args.unwrap_or(Vec::default()),
+        is_nullable: nullability_ind.is_some(),
     })
     .parse(s)
 }
@@ -81,12 +84,13 @@ mod tests {
     #[test]
     fn identifier_ext_test() {
         assert_eq!(
-            identifier_ext("Map<String, Object> "),
+            identifier_ext("Map<String, Object>? "),
             Ok((
                 " ",
                 IdentifierExt {
                     name: "Map",
-                    type_args: vec![IdentifierExt::name("String"), IdentifierExt::name("Object"),]
+                    type_args: vec![IdentifierExt::name("String"), IdentifierExt::name("Object"),],
+                    is_nullable: true,
                 }
             ))
         );
@@ -104,9 +108,11 @@ mod tests {
                         IdentifierExt::name("String"),
                         IdentifierExt {
                             name: "List",
-                            type_args: vec![IdentifierExt::name("int")]
+                            type_args: vec![IdentifierExt::name("int")],
+                            is_nullable: false,
                         }
-                    ]
+                    ],
+                    is_nullable: false,
                 }
             ))
         );

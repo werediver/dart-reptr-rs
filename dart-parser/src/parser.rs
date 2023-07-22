@@ -89,10 +89,16 @@ mod tests {
                                 type_args: vec![
                                     IdentifierExt {
                                         name: "Future",
-                                        type_args: vec![IdentifierExt::name("void")]
+                                        type_args: vec![IdentifierExt::name("void")],
+                                        is_nullable: false,
                                     },
-                                    IdentifierExt::name("B")
-                                ]
+                                    IdentifierExt {
+                                        name: "B",
+                                        type_args: Vec::default(),
+                                        is_nullable: true,
+                                    },
+                                ],
+                                is_nullable: false,
                             },
                             IdentifierExt::name("C")
                         ],
@@ -116,7 +122,7 @@ class Base {
   String id;
 }
 
-class Record extends Base implements A<Future<void>, B>, C {
+class Record extends Base implements A<Future<void>, B?>, C {
   String name;
 }
 "#;

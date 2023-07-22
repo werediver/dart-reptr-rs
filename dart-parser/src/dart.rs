@@ -16,6 +16,7 @@ pub enum Dart<'s> {
 pub struct IdentifierExt<'s> {
     pub name: &'s str,
     pub type_args: Vec<IdentifierExt<'s>>,
+    pub is_nullable: bool,
 }
 
 impl<'s> IdentifierExt<'s> {
@@ -23,6 +24,7 @@ impl<'s> IdentifierExt<'s> {
         Self {
             name,
             type_args: Vec::default(),
+            is_nullable: false,
         }
     }
 }
