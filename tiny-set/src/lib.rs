@@ -32,7 +32,7 @@ fn try_rewrite_enum(input: &syn::DeriveInput) -> syn::Result<proc_macro2::TokenS
     let enum_name = &input.ident;
 
     let variant_count = data.variants.len();
-    if variant_count > repr_uint.width {
+    if variant_count > repr_uint.width() {
         return Err(syn::Error::new_spanned(
             repr_uint,
             format!("{LIB}: the repr-type is not wide enough to accommodate all the variants"),

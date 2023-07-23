@@ -1,6 +1,7 @@
 mod class;
 mod common;
 mod directive;
+mod expr;
 mod member;
 mod string;
 
@@ -11,7 +12,7 @@ use nom::{
     bytes::complete::{is_not, tag},
     combinator::{eof, recognize},
     multi::many0,
-    sequence::tuple,
+    sequence::{terminated, tuple},
     Parser,
 };
 
@@ -20,19 +21,20 @@ use crate::{
     parser::{class::class, common::*},
 };
 
-use self::directive::directive;
+use self::{directive::directive, member::member_var};
 
 type PResult<'s, T> = nom::IResult<&'s str, T>;
 
 pub fn parse(s: &str) -> PResult<Vec<Dart>> {
-    let (s, items) = many0(alt((
-        alt((spbr, comment)).map(Dart::Verbatim),
-        directive.map(Dart::Directive),
-        class.map(Dart::Class),
-    )))(s)?;
-    let (s, _) = eof(s)?;
-
-    Ok((s, items))
+    terminated(
+        many0(alt((
+            alt((spbr, comment)).map(Dart::Verbatim),
+            directive.map(Dart::Directive),
+            member_var.map(Dart::Variable),
+            class.map(Dart::Class),
+        ))),
+        eof,
+    )(s)
 }
 
 /// The single-line comment parser consumes the trailing line-break, because
@@ -75,6 +77,23 @@ mod tests {
                     Dart::Verbatim("\n\n"),
                     Dart::Verbatim("// A comment\n"),
                     Dart::Verbatim("\n"),
+                    Dart::Variable(Variable {
+                        modifiers: MemberModifierSet::from_iter([MemberModifier::Const]),
+                        var_type: None,
+                        name: "category",
+                        initializer: Some("\"mixed bag\""),
+                    }),
+                    Dart::Verbatim("\n"),
+                    Dart::Variable(Variable {
+                        modifiers: MemberModifierSet::from_iter([
+                            MemberModifier::Late,
+                            MemberModifier::Final
+                        ]),
+                        var_type: Some(IdentifierExt::name("int")),
+                        name: "crash_count",
+                        initializer: None,
+                    }),
+                    Dart::Verbatim("\n\n"),
                     Dart::Class(Class {
                         modifiers: ClassModifierSet::from_iter([ClassModifier::Class]),
                         name: "Base",
@@ -121,6 +140,9 @@ import 'package:path/path.dart' as p;
 part 'types.g.dart';
 
 // A comment
+
+const category = "mixed bag";
+late final int crash_count;
 
 class Base {
   String id;
