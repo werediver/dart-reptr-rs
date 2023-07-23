@@ -5,27 +5,29 @@ use nom::{
     combinator::{cut, opt, recognize},
     multi::{fold_many0, separated_list1},
     sequence::{pair, preceded, terminated, tuple},
-    IResult, Parser,
+    Parser,
 };
 
 use crate::dart::IdentifierExt;
 
+use super::PResult;
+
 /// Parse one or more whitespace characters, excluding line breaks.
-pub fn sp(s: &str) -> IResult<&str, &str> {
+pub fn sp(s: &str) -> PResult<&str> {
     is_a(" \t")(s)
 }
 
 /// Parse one or more whitespace characters, including line breaks.
-pub fn spbr(s: &str) -> IResult<&str, &str> {
+pub fn spbr(s: &str) -> PResult<&str> {
     is_a(" \t\r\n")(s)
 }
 
 /// Parse exactly one line break.
-pub fn br(s: &str) -> IResult<&str, &str> {
+pub fn br(s: &str) -> PResult<&str> {
     alt((tag("\n"), tag("\r\n"), tag("\r")))(s)
 }
 
-pub fn identifier(s: &str) -> IResult<&str, &str> {
+pub fn identifier(s: &str) -> PResult<&str> {
     fn is_start_char(c: char) -> bool {
         c.is_ascii_alphabetic() || c == '_' || c == '$'
     }
@@ -41,7 +43,7 @@ pub fn identifier(s: &str) -> IResult<&str, &str> {
 }
 
 /// Parse an identifier with type arguments and the nullability indicator (e.g. `Future<int>?`).
-pub fn identifier_ext(s: &str) -> IResult<&str, IdentifierExt> {
+pub fn identifier_ext(s: &str) -> PResult<IdentifierExt> {
     tuple((
         identifier,
         opt(preceded(
@@ -61,7 +63,7 @@ pub fn identifier_ext(s: &str) -> IResult<&str, IdentifierExt> {
     .parse(s)
 }
 
-pub fn block(s: &str) -> IResult<&str, &str> {
+pub fn block(s: &str) -> PResult<&str> {
     recognize(preceded(
         char('{'),
         cut(terminated(

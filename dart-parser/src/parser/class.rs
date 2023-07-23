@@ -4,16 +4,13 @@ use nom::{
     combinator::{cut, opt, value},
     multi::{fold_many0, separated_list1},
     sequence::{pair, preceded, terminated, tuple},
-    IResult, Parser,
 };
 
-use crate::dart::{
-    Class, ClassModifier, ClassModifierSet, IdentifierExt, MemberModifier, MemberModifierSet,
-};
+use crate::dart::{Class, ClassModifier, ClassModifierSet, IdentifierExt};
 
-use super::common::*;
+use super::{common::*, PResult};
 
-pub fn class(s: &str) -> IResult<&str, Class> {
+pub fn class(s: &str) -> PResult<Class> {
     let (s, modifiers) = terminated(class_modifier_set, spbr)(s)?;
     let (s, name) = terminated(identifier, opt(spbr))(s)?;
     let (s, extends) = opt(terminated(extends, spbr))(s)?;
@@ -32,7 +29,7 @@ pub fn class(s: &str) -> IResult<&str, Class> {
     ))
 }
 
-fn class_modifier_set(s: &str) -> IResult<&str, ClassModifierSet> {
+fn class_modifier_set(s: &str) -> PResult<ClassModifierSet> {
     let (s, modifier) = class_modifier(s)?;
 
     let modifiers = ClassModifierSet::from_iter([modifier]);
@@ -44,7 +41,7 @@ fn class_modifier_set(s: &str) -> IResult<&str, ClassModifierSet> {
     )(s)
 }
 
-fn class_modifier(s: &str) -> IResult<&str, ClassModifier> {
+fn class_modifier(s: &str) -> PResult<ClassModifier> {
     alt((
         value(ClassModifier::Abstract, tag("abstract")),
         value(ClassModifier::Base, tag("base")),
@@ -56,11 +53,11 @@ fn class_modifier(s: &str) -> IResult<&str, ClassModifier> {
     ))(s)
 }
 
-fn extends(s: &str) -> IResult<&str, IdentifierExt> {
+fn extends(s: &str) -> PResult<IdentifierExt> {
     preceded(pair(tag("extends"), spbr), cut(identifier_ext))(s)
 }
 
-fn implements(s: &str) -> IResult<&str, Vec<IdentifierExt>> {
+fn implements(s: &str) -> PResult<Vec<IdentifierExt>> {
     preceded(
         pair(tag("implements"), spbr),
         cut(separated_list1(

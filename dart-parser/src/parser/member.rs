@@ -1,13 +1,12 @@
 use nom::{
     branch::alt, bytes::complete::tag, combinator::value, multi::fold_many0, sequence::preceded,
-    IResult,
 };
 
 use crate::dart::{MemberModifier, MemberModifierSet};
 
-use super::common::spbr;
+use super::{common::spbr, PResult};
 
-fn member_modifier_set(s: &str) -> IResult<&str, MemberModifierSet> {
+fn member_modifier_set(s: &str) -> PResult<MemberModifierSet> {
     let (s, modifier) = member_modifier(s)?;
 
     let modifiers = MemberModifierSet::from_iter([modifier]);
@@ -19,7 +18,7 @@ fn member_modifier_set(s: &str) -> IResult<&str, MemberModifierSet> {
     )(s)
 }
 
-fn member_modifier(s: &str) -> IResult<&str, MemberModifier> {
+fn member_modifier(s: &str) -> PResult<MemberModifier> {
     alt((
         value(MemberModifier::External, tag("external")),
         value(MemberModifier::Static, tag("static")),

@@ -4,7 +4,7 @@ use nom::{
     combinator::{cut, opt},
     multi::separated_list1,
     sequence::{pair, preceded, terminated, tuple},
-    IResult, Parser,
+    Parser,
 };
 
 use crate::dart::directive::{Directive, Import, PartOf};
@@ -12,9 +12,10 @@ use crate::dart::directive::{Directive, Import, PartOf};
 use super::{
     common::{identifier, spbr},
     string::string_simple,
+    PResult,
 };
 
-pub fn directive(s: &str) -> IResult<&str, Directive> {
+pub fn directive(s: &str) -> PResult<Directive> {
     alt((
         export.map(Directive::Export),
         import.map(Directive::Import),
@@ -23,14 +24,14 @@ pub fn directive(s: &str) -> IResult<&str, Directive> {
     ))(s)
 }
 
-fn export(s: &str) -> IResult<&str, &str> {
+fn export(s: &str) -> PResult<&str> {
     preceded(
         pair(tag("export"), spbr),
         cut(terminated(terminated(string_simple, opt(spbr)), tag(";"))),
     )(s)
 }
 
-fn import(s: &str) -> IResult<&str, Import> {
+fn import(s: &str) -> PResult<Import> {
     preceded(
         pair(tag("import"), spbr),
         cut(terminated(
@@ -69,14 +70,14 @@ fn import(s: &str) -> IResult<&str, Import> {
     .parse(s)
 }
 
-fn part(s: &str) -> IResult<&str, &str> {
+fn part(s: &str) -> PResult<&str> {
     preceded(
         pair(tag("part"), spbr),
         cut(terminated(string_simple, pair(opt(spbr), tag(";")))),
     )(s)
 }
 
-fn part_of(s: &str) -> IResult<&str, PartOf> {
+fn part_of(s: &str) -> PResult<PartOf> {
     preceded(
         tuple((tag("part"), spbr, tag("of"), spbr)),
         cut(terminated(

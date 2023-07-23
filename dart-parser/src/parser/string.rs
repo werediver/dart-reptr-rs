@@ -4,8 +4,9 @@ use nom::{
     combinator::{cut, recognize},
     multi::many0_count,
     sequence::{preceded, terminated},
-    IResult,
 };
+
+use super::PResult;
 
 /// Parse a single- or double-quoted string literal without escape-sequences.
 ///
@@ -16,7 +17,7 @@ use nom::{
 /// literals.
 ///
 /// Return the body of the string without the enclosing quotes.
-pub fn string_simple(s: &str) -> IResult<&str, &str> {
+pub fn string_simple(s: &str) -> PResult<&str> {
     let dq = preceded(
         tag("\""),
         cut(terminated(
