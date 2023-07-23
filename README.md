@@ -1,4 +1,4 @@
-[![Validation](https://github.com/werediver/dart-reptr-rs/actions/workflows/validate.yaml/badge.svg?event=push&branch=main)](https://github.com/werediver/dart-reptr-rs/actions/workflows/validate.yaml)
+[![Validation](https://github.com/werediver/dart-reptr-rs/actions/workflows/validation.yaml/badge.svg?event=push&branch=main)](https://github.com/werediver/dart-reptr-rs/actions/workflows/validation.yaml)
 
 # Dart repointer
 
