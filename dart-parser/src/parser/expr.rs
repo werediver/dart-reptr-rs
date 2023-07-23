@@ -7,6 +7,7 @@ use crate::parser::{
 
 use super::PResult;
 
+/// This is a pretty shady expression parser.
 pub fn expr(s: &str) -> PResult<&str> {
     const EXPR_STOP_CHARS_EXT: &str = "()[]{},;";
     debug_assert!(EXPR_STOP_CHARS_EXT.starts_with(SCOPE_STOP_CHARS));

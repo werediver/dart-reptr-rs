@@ -24,8 +24,8 @@ fn try_tiny_set(input: &syn::DeriveInput) -> syn::Result<proc_macro2::TokenStrea
 }
 
 fn try_rewrite_enum(input: &syn::DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
-    let repr_uint = get_repr_uint(&input)?;
-    let data = get_enum(&input)?;
+    let repr_uint = get_repr_uint(input)?;
+    let data = get_enum(input)?;
 
     let attrs = &input.attrs;
     let vis = &input.vis;
@@ -40,8 +40,7 @@ fn try_rewrite_enum(input: &syn::DeriveInput) -> syn::Result<proc_macro2::TokenS
     }
 
     let mut variants = Vec::with_capacity(variant_count);
-    let mut i = 0usize;
-    for var in &data.variants {
+    for (i, var) in (&data.variants).into_iter().enumerate() {
         let attrs = &var.attrs;
         let name = &var.ident;
 
@@ -63,8 +62,6 @@ fn try_rewrite_enum(input: &syn::DeriveInput) -> syn::Result<proc_macro2::TokenS
             #(#attrs)*
             #name = 1 << #i
         });
-
-        i += 1;
     }
 
     Ok(quote! {
@@ -76,8 +73,8 @@ fn try_rewrite_enum(input: &syn::DeriveInput) -> syn::Result<proc_macro2::TokenS
 }
 
 fn try_write_set(input: &syn::DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
-    let repr_uint = get_repr_uint(&input)?;
-    let data = get_enum(&input)?;
+    let repr_uint = get_repr_uint(input)?;
+    let data = get_enum(input)?;
 
     let vis = &input.vis;
     let enum_name = &input.ident;
