@@ -12,7 +12,7 @@ use nom::{
     combinator::{eof, recognize},
     multi::many0,
     sequence::tuple,
-    IResult, Parser,
+    Parser,
 };
 
 use crate::{
@@ -22,7 +22,9 @@ use crate::{
 
 use self::directive::directive;
 
-pub fn parse(s: &str) -> IResult<&str, Vec<Dart>> {
+type PResult<'s, T> = nom::IResult<&'s str, T>;
+
+pub fn parse(s: &str) -> PResult<Vec<Dart>> {
     let (s, items) = many0(alt((
         alt((spbr, comment)).map(Dart::Verbatim),
         directive.map(Dart::Directive),
@@ -33,7 +35,9 @@ pub fn parse(s: &str) -> IResult<&str, Vec<Dart>> {
     Ok((s, items))
 }
 
-fn comment(s: &str) -> IResult<&str, &str> {
+/// The single-line comment parser consumes the trailing line-break, because
+/// that line-break terminates the comment rather than being "just" whitespace.
+fn comment(s: &str) -> PResult<&str> {
     recognize(tuple((tag("//"), is_not("\r\n"), alt((br, eof)))))(s)
 }
 
