@@ -1,14 +1,15 @@
 mod class;
 pub mod directive;
-mod member_modifier;
+mod member;
 
 pub use class::*;
-pub use member_modifier::*;
+pub use member::*;
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum Dart<'s> {
     Verbatim(&'s str),
     Directive(directive::Directive<'s>),
+    Variable(Variable<'s>),
     Class(Class<'s>),
 }
 
