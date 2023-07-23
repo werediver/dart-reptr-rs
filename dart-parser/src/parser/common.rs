@@ -1,20 +1,24 @@
 use nom::{
     branch::alt,
-    bytes::complete::{is_a, is_not, tag, take_while, take_while_m_n},
-    character::complete::char,
+    bytes::complete::{is_a, tag, take_while, take_while_m_n},
     combinator::{cut, opt, recognize},
+    error::ParseError,
     multi::{fold_many0, separated_list1},
     sequence::{pair, preceded, terminated, tuple},
-    Parser,
+    InputLength, Parser,
 };
 
 use crate::dart::IdentifierExt;
 
 use super::PResult;
 
-/// Parse one or more whitespace characters, excluding line breaks.
-pub fn sp(s: &str) -> PResult<&str> {
-    is_a(" \t")(s)
+pub fn skip_many0<P, I, O, E>(p: P) -> impl Parser<I, (), E>
+where
+    P: Parser<I, O, E>,
+    I: Clone + InputLength,
+    E: ParseError<I>,
+{
+    fold_many0(p, || {}, |_, _| {})
 }
 
 /// Parse one or more whitespace characters, including line breaks.
@@ -61,16 +65,6 @@ pub fn identifier_ext(s: &str) -> PResult<IdentifierExt> {
         is_nullable: nullability_ind.is_some(),
     })
     .parse(s)
-}
-
-pub fn block(s: &str) -> PResult<&str> {
-    recognize(preceded(
-        char('{'),
-        cut(terminated(
-            recognize(fold_many0(alt((is_not("{}"), block)), || {}, |_, _| {})),
-            char('}'),
-        )),
-    ))(s)
 }
 
 #[cfg(test)]

@@ -8,7 +8,7 @@ use nom::{
 
 use crate::dart::{Class, ClassModifier, ClassModifierSet, IdentifierExt};
 
-use super::{common::*, PResult};
+use super::{common::*, scope::block, PResult};
 
 pub fn class(s: &str) -> PResult<Class> {
     let (s, modifiers) = terminated(class_modifier_set, spbr)(s)?;
