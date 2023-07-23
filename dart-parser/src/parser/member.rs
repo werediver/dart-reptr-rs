@@ -7,7 +7,7 @@ use nom::{
     Parser,
 };
 
-use crate::dart::{IdentifierExt, MemberModifier, MemberModifierSet, Variable};
+use crate::dart::{MemberModifier, MemberModifierSet, Variable};
 
 use super::{
     common::{identifier, identifier_ext, spbr},
@@ -68,6 +68,8 @@ fn member_modifier(s: &str) -> PResult<MemberModifier> {
 
 #[cfg(test)]
 mod tests {
+    use crate::dart::IdentifierExt;
+
     use super::*;
 
     #[test]

@@ -3,6 +3,7 @@ mod common;
 mod directive;
 mod expr;
 mod member;
+mod scope;
 mod string;
 
 use std::str;
