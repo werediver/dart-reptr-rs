@@ -3,8 +3,8 @@ use tiny_set::with_tiny_set;
 use super::IdentifierExt;
 
 #[derive(PartialEq, Eq, Debug)]
-pub struct Variable<'s> {
-    pub modifiers: MemberModifierSet,
+pub struct Var<'s> {
+    pub modifiers: VarModifierSet,
     pub var_type: Option<IdentifierExt<'s>>,
     pub name: &'s str,
     pub initializer: Option<&'s str>,
@@ -13,7 +13,7 @@ pub struct Variable<'s> {
 #[with_tiny_set]
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
 #[repr(usize)]
-pub enum MemberModifier {
+pub enum VarModifier {
     External,
     Static,
     Const,
