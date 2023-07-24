@@ -144,14 +144,20 @@ fn try_write_set(input: &syn::DeriveInput) -> syn::Result<proc_macro2::TokenStre
             type Item = #enum_name;
 
             fn next(&mut self) -> core::option::Option<Self::Item> {
-                let result = Self::VARIANTS
-                    .get(self.offset)
-                    .copied()
-                    .filter(|&var| self.set.contains(var));
+                for _ in self.offset .. Self::VARIANTS.len() {
+                    let result = Self::VARIANTS
+                        .get(self.offset)
+                        .copied()
+                        .filter(|&var| self.set.contains(var));
 
-                self.offset += 1;
+                    self.offset += 1;
 
-                result
+                    if result.is_some() {
+                        return result;
+                    }
+                }
+
+                None
             }
         }
     })
