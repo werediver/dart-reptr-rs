@@ -7,7 +7,7 @@ use nom::{
     Parser,
 };
 
-use crate::dart::{MemberModifier, MemberModifierSet, Variable};
+use crate::dart::{Var, VarModifier, VarModifierSet};
 
 use super::{
     common::{identifier, identifier_ext, spbr},
@@ -15,11 +15,11 @@ use super::{
     PResult,
 };
 
-pub fn member_var(s: &str) -> PResult<Variable> {
+pub fn var(s: &str) -> PResult<Var> {
     tuple((
         alt((
-            member_modifier_set,
-            value(MemberModifierSet::default(), tag("var")),
+            var_modifier_set,
+            value(VarModifierSet::default(), tag("var")),
         )),
         alt((
             // A type followed by a name
@@ -34,7 +34,7 @@ pub fn member_var(s: &str) -> PResult<Variable> {
         opt(preceded(tuple((opt(spbr), tag("="), opt(spbr))), expr)),
         preceded(opt(spbr), tag(";")),
     ))
-    .map(|(modifiers, (var_type, name), initializer, _)| Variable {
+    .map(|(modifiers, (var_type, name), initializer, _)| Var {
         modifiers,
         var_type,
         name,
@@ -43,26 +43,26 @@ pub fn member_var(s: &str) -> PResult<Variable> {
     .parse(s)
 }
 
-fn member_modifier_set(s: &str) -> PResult<MemberModifierSet> {
-    let (s, modifier) = member_modifier(s)?;
+fn var_modifier_set(s: &str) -> PResult<VarModifierSet> {
+    let (s, modifier) = var_modifier(s)?;
 
-    let modifiers = MemberModifierSet::from_iter([modifier]);
+    let modifiers = VarModifierSet::from_iter([modifier]);
 
     fold_many0(
-        preceded(spbr, member_modifier),
+        preceded(spbr, var_modifier),
         move || modifiers,
         |modifiers, modifier| modifiers.with(modifier),
     )(s)
 }
 
-fn member_modifier(s: &str) -> PResult<MemberModifier> {
+fn var_modifier(s: &str) -> PResult<VarModifier> {
     alt((
-        value(MemberModifier::External, tag("external")),
-        value(MemberModifier::Static, tag("static")),
-        value(MemberModifier::Const, tag("const")),
-        value(MemberModifier::Final, tag("final")),
-        value(MemberModifier::Late, tag("late")),
-        value(MemberModifier::Covariant, tag("covariant")),
+        value(VarModifier::External, tag("external")),
+        value(VarModifier::Static, tag("static")),
+        value(VarModifier::Const, tag("const")),
+        value(VarModifier::Final, tag("final")),
+        value(VarModifier::Late, tag("late")),
+        value(VarModifier::Covariant, tag("covariant")),
     ))(s)
 }
 
@@ -75,11 +75,11 @@ mod tests {
     #[test]
     fn member_var_test() {
         assert_eq!(
-            member_var("final String? name; "),
+            var("final String? name; "),
             Ok((
                 " ",
-                Variable {
-                    modifiers: MemberModifierSet::from_iter([MemberModifier::Final]),
+                Var {
+                    modifiers: VarModifierSet::from_iter([VarModifier::Final]),
                     var_type: Some(IdentifierExt {
                         name: "String",
                         type_args: Vec::default(),
@@ -95,14 +95,13 @@ mod tests {
     #[test]
     fn member_var_init() {
         assert_eq!(
-            member_var("static const type = \"type\"; "),
+            var("static const type = \"type\"; "),
             Ok((
                 " ",
-                Variable {
-                    modifiers: MemberModifierSet::from_iter([
-                        MemberModifier::Static,
-                        MemberModifier::Const,
-                    ]),
+                Var {
+                    modifiers: VarModifierSet::from_iter(
+                        [VarModifier::Static, VarModifier::Const,]
+                    ),
                     var_type: None,
                     name: "type",
                     initializer: Some("\"type\""),
@@ -114,12 +113,10 @@ mod tests {
     #[test]
     fn member_modifier_set_test() {
         assert_eq!(
-            member_modifier_set("late final "),
+            var_modifier_set("late final "),
             Ok((
                 " ",
-                MemberModifierSet::from_iter(
-                    [MemberModifier::Late, MemberModifier::Final].into_iter()
-                )
+                VarModifierSet::from_iter([VarModifier::Late, VarModifier::Final].into_iter())
             ))
         );
     }

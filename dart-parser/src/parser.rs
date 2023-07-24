@@ -2,9 +2,10 @@ mod class;
 mod common;
 mod directive;
 mod expr;
-mod member;
+mod func;
 mod scope;
 mod string;
+mod var;
 
 use std::str;
 
@@ -22,7 +23,7 @@ use crate::{
     parser::{class::class, common::*},
 };
 
-use self::{directive::directive, member::member_var};
+use self::{directive::directive, func::func, var::var};
 
 type PResult<'s, T> = nom::IResult<&'s str, T>;
 
@@ -31,7 +32,8 @@ pub fn parse(s: &str) -> PResult<Vec<Dart>> {
         many0(alt((
             alt((spbr, comment)).map(Dart::Verbatim),
             directive.map(Dart::Directive),
-            member_var.map(Dart::Variable),
+            var.map(Dart::Var),
+            func.map(Dart::Func),
             class.map(Dart::Class),
         ))),
         eof,
@@ -78,17 +80,17 @@ mod tests {
                     Dart::Verbatim("\n\n"),
                     Dart::Verbatim("// A comment\n"),
                     Dart::Verbatim("\n"),
-                    Dart::Variable(Variable {
-                        modifiers: MemberModifierSet::from_iter([MemberModifier::Const]),
+                    Dart::Var(Var {
+                        modifiers: VarModifierSet::from_iter([VarModifier::Const]),
                         var_type: None,
                         name: "category",
                         initializer: Some("\"mixed bag\""),
                     }),
                     Dart::Verbatim("\n"),
-                    Dart::Variable(Variable {
-                        modifiers: MemberModifierSet::from_iter([
-                            MemberModifier::Late,
-                            MemberModifier::Final
+                    Dart::Var(Var {
+                        modifiers: VarModifierSet::from_iter([
+                            VarModifier::Late,
+                            VarModifier::Final
                         ]),
                         var_type: Some(IdentifierExt::name("int")),
                         name: "crash_count",
