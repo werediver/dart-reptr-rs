@@ -87,7 +87,7 @@ fn try_load_parse(path: &Path) -> io::Result<()> {
     Ok(())
 }
 
-fn try_mmap_parse(path: &Path) -> io::Result<()> {
+fn _try_mmap_parse(path: &Path) -> io::Result<()> {
     let f = fs::File::open(path).context_lazy(|| format!("Cannot open file at path {path:?}"))?;
     let content = unsafe { memmap2::Mmap::map(&f)? };
     let content =
