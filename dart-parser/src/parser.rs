@@ -130,7 +130,47 @@ mod tests {
                         ],
                         body: "{\n  String name;\n}",
                     }),
-                    Dart::Verbatim("\n")
+                    Dart::Verbatim("\n\n"),
+                    Dart::Func(Func {
+                        modifiers: FuncModifierSet::default(),
+                        return_type: IdentifierExt {
+                            name: "Map",
+                            type_args: vec![
+                                IdentifierExt::name("String"),
+                                IdentifierExt {
+                                    name: "Object",
+                                    type_args: Vec::new(),
+                                    is_nullable: true,
+                                }
+                            ],
+                            is_nullable: false,
+                        },
+                        name: "_recordToJson",
+                        params: FuncParams {
+                            positional: vec![
+                                FuncParam {
+                                    is_required: true,
+                                    modifiers: FuncParamModifierSet::default(),
+                                    param_type: Some(IdentifierExt::name("Record")),
+                                    name: "o",
+                                    initializer: None,
+                                },
+                                FuncParam {
+                                    is_required: false,
+                                    modifiers: FuncParamModifierSet::default(),
+                                    param_type: Some(IdentifierExt::name("bool")),
+                                    name: "quack",
+                                    initializer: Some("false")
+                                }
+                            ],
+                            named: Vec::new(),
+                        },
+                        body: Some(FuncBody {
+                            modifiers: FuncBodyModifierSet::default(),
+                            content: FuncBodyContent::Block("{\n    print(\"Hello?\");\n}")
+                        })
+                    }),
+                    Dart::Verbatim("\n"),
                 ]
             ))
         );
@@ -153,6 +193,10 @@ class Base {
 
 class Record extends Base implements A<Future<void>, B?>, C {
   String name;
+}
+
+Map<String, Object?> _recordToJson(Record o, [bool quack = false]) {
+    print("Hello?");
 }
 "#;
 }

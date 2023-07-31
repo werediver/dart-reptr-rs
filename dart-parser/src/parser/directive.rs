@@ -2,6 +2,7 @@ use nom::{
     branch::{alt, permutation},
     bytes::complete::tag,
     combinator::{cut, opt},
+    error::context,
     multi::separated_list1,
     sequence::{pair, preceded, terminated, tuple},
     Parser,
@@ -16,77 +17,92 @@ use super::{
 };
 
 pub fn directive(s: &str) -> PResult<Directive> {
-    alt((
-        export.map(Directive::Export),
-        import.map(Directive::Import),
-        part_of.map(Directive::PartOf),
-        part.map(Directive::Part),
-    ))(s)
+    context(
+        "directive",
+        alt((
+            export.map(Directive::Export),
+            import.map(Directive::Import),
+            part_of.map(Directive::PartOf),
+            part.map(Directive::Part),
+        )),
+    )(s)
 }
 
 fn export(s: &str) -> PResult<&str> {
-    preceded(
-        pair(tag("export"), spbr),
-        cut(terminated(terminated(string_simple, opt(spbr)), tag(";"))),
+    context(
+        "export",
+        preceded(
+            pair(tag("export"), spbr),
+            cut(terminated(terminated(string_simple, opt(spbr)), tag(";"))),
+        ),
     )(s)
 }
 
 fn import(s: &str) -> PResult<Import> {
-    preceded(
-        pair(tag("import"), spbr),
-        cut(terminated(
-            tuple((
-                terminated(string_simple, opt(spbr)),
-                opt(preceded(
-                    pair(tag("as"), spbr),
-                    terminated(identifier, opt(spbr)),
-                )),
-                permutation((
+    context(
+        "import",
+        preceded(
+            pair(tag("import"), spbr),
+            cut(terminated(
+                tuple((
+                    terminated(string_simple, opt(spbr)),
                     opt(preceded(
-                        pair(tag("show"), spbr),
-                        separated_list1(
-                            pair(tag(","), opt(spbr)),
-                            terminated(identifier, opt(spbr)),
-                        ),
+                        pair(tag("as"), spbr),
+                        terminated(identifier, opt(spbr)),
                     )),
-                    opt(preceded(
-                        pair(tag("hide"), spbr),
-                        separated_list1(
-                            pair(tag(","), opt(spbr)),
-                            terminated(identifier, opt(spbr)),
-                        ),
+                    permutation((
+                        opt(preceded(
+                            pair(tag("show"), spbr),
+                            separated_list1(
+                                pair(tag(","), opt(spbr)),
+                                terminated(identifier, opt(spbr)),
+                            ),
+                        )),
+                        opt(preceded(
+                            pair(tag("hide"), spbr),
+                            separated_list1(
+                                pair(tag(","), opt(spbr)),
+                                terminated(identifier, opt(spbr)),
+                            ),
+                        )),
                     )),
                 )),
+                tag(";"),
             )),
-            tag(";"),
-        )),
+        )
+        .map(|(target, prefix, (show, hide))| Import {
+            target,
+            prefix,
+            show: show.unwrap_or(Vec::default()),
+            hide: hide.unwrap_or(Vec::default()),
+        }),
     )
-    .map(|(target, prefix, (show, hide))| Import {
-        target,
-        prefix,
-        show: show.unwrap_or(Vec::default()),
-        hide: hide.unwrap_or(Vec::default()),
-    })
     .parse(s)
 }
 
 fn part(s: &str) -> PResult<&str> {
-    preceded(
-        pair(tag("part"), spbr),
-        cut(terminated(string_simple, pair(opt(spbr), tag(";")))),
+    context(
+        "part",
+        preceded(
+            pair(tag("part"), spbr),
+            cut(terminated(string_simple, pair(opt(spbr), tag(";")))),
+        ),
     )(s)
 }
 
 fn part_of(s: &str) -> PResult<PartOf> {
-    preceded(
-        tuple((tag("part"), spbr, tag("of"), spbr)),
-        cut(terminated(
-            alt((
-                string_simple.map(PartOf::LibPath),
-                identifier.map(PartOf::LibName),
+    context(
+        "part_of",
+        preceded(
+            tuple((tag("part"), spbr, tag("of"), spbr)),
+            cut(terminated(
+                alt((
+                    string_simple.map(PartOf::LibPath),
+                    identifier.map(PartOf::LibName),
+                )),
+                pair(opt(spbr), tag(";")),
             )),
-            pair(opt(spbr), tag(";")),
-        )),
+        ),
     )(s)
 }
 

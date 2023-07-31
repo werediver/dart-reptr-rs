@@ -3,6 +3,7 @@ use nom::{
     bytes::complete::is_not,
     character::complete::char,
     combinator::{cut, recognize},
+    error::context,
     sequence::{preceded, terminated},
 };
 
@@ -22,11 +23,14 @@ pub fn block(s: &str) -> PResult<&str> {
 
 /// Note that this parser strips the outermost brackets.
 fn scope<'s>(open: char, close: char) -> impl FnMut(&'s str) -> PResult<&'s str> {
-    preceded(
-        char(open),
-        cut(terminated(
-            recognize(skip_many0(alt((is_not(SCOPE_STOP_CHARS), any_scope)))),
-            char(close),
-        )),
+    context(
+        "scope",
+        preceded(
+            char(open),
+            cut(terminated(
+                recognize(skip_many0(alt((is_not(SCOPE_STOP_CHARS), any_scope)))),
+                char(close),
+            )),
+        ),
     )
 }

@@ -1,8 +1,8 @@
 use nom::{
     branch::alt,
     bytes::complete::{is_a, tag, take_while, take_while_m_n},
-    combinator::{cut, opt, recognize},
-    error::ParseError,
+    combinator::{cut, fail, opt, recognize},
+    error::{context, ParseError},
     multi::{fold_many0, separated_list1},
     sequence::{pair, preceded, terminated, tuple},
     InputLength, Parser,
@@ -32,6 +32,16 @@ pub fn br(s: &str) -> PResult<&str> {
 }
 
 pub fn identifier(s: &str) -> PResult<&str> {
+    // Based on [Keywords](https://dart.dev/language/keywords).
+    const RESERVED: [&str; 27] = [
+        "assert", "break", "case", "catch", "class", "const", "continue", "default", "do", "else",
+        "enum", "extends", "finally", "for", "if", "in", "is", "new", "rethrow", "return",
+        "switch", "throw", "try", "var", "when", "while",
+        "with",
+        // It is desirable to recognize the following words as identifiers
+        // "false", "null", "super", "this", "true", "void",
+    ];
+
     fn is_start_char(c: char) -> bool {
         c.is_ascii_alphabetic() || c == '_' || c == '$'
     }
@@ -40,30 +50,41 @@ pub fn identifier(s: &str) -> PResult<&str> {
         is_start_char(c) || c.is_ascii_digit()
     }
 
-    recognize(pair(
-        take_while_m_n(1, 1, is_start_char),
-        take_while(is_part_char),
-    ))(s)
+    context("identifier", |s| {
+        let (tail, id) = recognize(pair(
+            take_while_m_n(1, 1, is_start_char),
+            take_while(is_part_char),
+        ))(s)?;
+
+        if RESERVED.contains(&id) {
+            fail(s)
+        } else {
+            Ok((tail, id))
+        }
+    })(s)
 }
 
 /// Parse an identifier with type arguments and the nullability indicator (e.g. `Future<int>?`).
 pub fn identifier_ext(s: &str) -> PResult<IdentifierExt> {
-    tuple((
-        identifier,
-        opt(preceded(
-            tuple((opt(spbr), tag("<"), opt(spbr))),
-            cut(terminated(
-                separated_list1(tuple((opt(spbr), tag(","), opt(spbr))), identifier_ext),
-                pair(opt(spbr), tag(">")),
+    context(
+        "identifier_ext",
+        tuple((
+            identifier,
+            opt(preceded(
+                tuple((opt(spbr), tag("<"), opt(spbr))),
+                cut(terminated(
+                    separated_list1(tuple((opt(spbr), tag(","), opt(spbr))), identifier_ext),
+                    pair(opt(spbr), tag(">")),
+                )),
             )),
-        )),
-        opt(preceded(opt(spbr), tag("?"))),
-    ))
-    .map(|(name, args, nullability_ind)| IdentifierExt {
-        name,
-        type_args: args.unwrap_or(Vec::default()),
-        is_nullable: nullability_ind.is_some(),
-    })
+            opt(preceded(opt(spbr), tag("?"))),
+        ))
+        .map(|(name, args, nullability_ind)| IdentifierExt {
+            name,
+            type_args: args.unwrap_or(Vec::default()),
+            is_nullable: nullability_ind.is_some(),
+        }),
+    )
     .parse(s)
 }
 
