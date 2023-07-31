@@ -2,7 +2,7 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     combinator::{cut, opt, value},
-    error::context,
+    error::{context, ContextError, ParseError},
     multi::{fold_many0, separated_list1},
     sequence::{pair, preceded, terminated, tuple},
 };
@@ -11,7 +11,10 @@ use crate::dart::{Class, ClassModifier, ClassModifierSet, IdentifierExt};
 
 use super::{common::*, scope::block, PResult};
 
-pub fn class(s: &str) -> PResult<Class> {
+pub fn class<'s, E>(s: &'s str) -> PResult<Class, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
     context("class", |s| {
         let (s, modifiers) = terminated(class_modifier_set, spbr)(s)?;
         let (s, name) = terminated(identifier, opt(spbr))(s)?;
@@ -32,7 +35,7 @@ pub fn class(s: &str) -> PResult<Class> {
     })(s)
 }
 
-fn class_modifier_set(s: &str) -> PResult<ClassModifierSet> {
+fn class_modifier_set<'s, E: ParseError<&'s str>>(s: &'s str) -> PResult<ClassModifierSet, E> {
     let (s, modifier) = class_modifier(s)?;
 
     let modifiers = ClassModifierSet::from_iter([modifier]);
@@ -44,7 +47,7 @@ fn class_modifier_set(s: &str) -> PResult<ClassModifierSet> {
     )(s)
 }
 
-fn class_modifier(s: &str) -> PResult<ClassModifier> {
+fn class_modifier<'s, E: ParseError<&'s str>>(s: &'s str) -> PResult<ClassModifier, E> {
     alt((
         value(ClassModifier::Abstract, tag("abstract")),
         value(ClassModifier::Base, tag("base")),
@@ -56,14 +59,20 @@ fn class_modifier(s: &str) -> PResult<ClassModifier> {
     ))(s)
 }
 
-fn extends_clause(s: &str) -> PResult<IdentifierExt> {
+fn extends_clause<'s, E>(s: &'s str) -> PResult<IdentifierExt, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
     context(
         "extends_clause",
         preceded(pair(tag("extends"), spbr), cut(identifier_ext)),
     )(s)
 }
 
-fn implements_clause(s: &str) -> PResult<Vec<IdentifierExt>> {
+fn implements_clause<'s, E>(s: &'s str) -> PResult<Vec<IdentifierExt>, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
     context(
         "implements_clause",
         preceded(
@@ -78,12 +87,14 @@ fn implements_clause(s: &str) -> PResult<Vec<IdentifierExt>> {
 
 #[cfg(test)]
 mod tests {
+    use nom::error::VerboseError;
+
     use super::*;
 
     #[test]
     fn extends_test() {
         assert_eq!(
-            extends_clause("extends Base "),
+            extends_clause::<VerboseError<_>>("extends Base "),
             Ok((" ", IdentifierExt::name("Base")))
         );
     }
@@ -91,7 +102,7 @@ mod tests {
     #[test]
     fn implements_test() {
         assert_eq!(
-            implements_clause("implements A, B, C "),
+            implements_clause::<VerboseError<_>>("implements A, B, C "),
             Ok((
                 " ",
                 vec![
@@ -106,7 +117,7 @@ mod tests {
     #[test]
     fn class_test() {
         assert_eq!(
-            class("class Record extends Base implements A, B {}"),
+            class::<VerboseError<_>>("class Record extends Base implements A, B {}"),
             Ok((
                 "",
                 Class {
@@ -123,7 +134,7 @@ mod tests {
     #[test]
     fn class_property_test() {
         assert_eq!(
-            class("class Record {\n  String id;\n}"),
+            class::<VerboseError<_>>("class Record {\n  String id;\n}"),
             Ok((
                 "",
                 Class {
@@ -140,7 +151,7 @@ mod tests {
     #[test]
     fn class_generic_test() {
         assert_eq!(
-            class("class Record extends Base<T> implements A<Future<void>> {}"),
+            class::<VerboseError<_>>("class Record extends Base<T> implements A<Future<void>> {}"),
             Ok((
                 "",
                 Class {

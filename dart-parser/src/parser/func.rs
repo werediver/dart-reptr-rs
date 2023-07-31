@@ -2,7 +2,7 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     combinator::{cut, fail, opt, success, value},
-    error::context,
+    error::{context, ContextError, ParseError},
     multi::{fold_many0, separated_list0, separated_list1},
     sequence::{pair, preceded, terminated, tuple},
     Parser,
@@ -20,7 +20,10 @@ use super::{
     PResult,
 };
 
-pub fn func(s: &str) -> PResult<Func> {
+pub fn func<'s, E>(s: &'s str) -> PResult<Func, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
     context(
         "func",
         tuple((
@@ -50,7 +53,7 @@ pub fn func(s: &str) -> PResult<Func> {
     .parse(s)
 }
 
-fn func_modifier_set(s: &str) -> PResult<FuncModifierSet> {
+fn func_modifier_set<'s, E: ParseError<&'s str>>(s: &'s str) -> PResult<FuncModifierSet, E> {
     let (s, modifier) = func_modifier(s)?;
 
     let modifiers = FuncModifierSet::from_iter([modifier]);
@@ -62,14 +65,17 @@ fn func_modifier_set(s: &str) -> PResult<FuncModifierSet> {
     )(s)
 }
 
-fn func_modifier(s: &str) -> PResult<FuncModifier> {
+fn func_modifier<'s, E: ParseError<&'s str>>(s: &'s str) -> PResult<FuncModifier, E> {
     alt((
         value(FuncModifier::External, tag("external")),
         value(FuncModifier::Static, tag("static")),
     ))(s)
 }
 
-fn type_params(s: &str) -> PResult<Vec<()>> {
+fn type_params<'s, E>(s: &'s str) -> PResult<Vec<()>, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
     context(
         "type_params",
         preceded(
@@ -82,11 +88,14 @@ fn type_params(s: &str) -> PResult<Vec<()>> {
     )(s)
 }
 
-fn type_param(s: &str) -> PResult<()> {
+fn type_param<'s, E: ParseError<&'s str>>(s: &'s str) -> PResult<(), E> {
     fail(s)
 }
 
-fn func_params(s: &str) -> PResult<FuncParams> {
+fn func_params<'s, E>(s: &'s str) -> PResult<FuncParams, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
     context(
         "func_params",
         preceded(
@@ -107,7 +116,10 @@ fn func_params(s: &str) -> PResult<FuncParams> {
     .parse(s)
 }
 
-fn func_params_pos(s: &str) -> PResult<Vec<FuncParam>> {
+fn func_params_pos<'s, E>(s: &'s str) -> PResult<Vec<FuncParam>, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
     pair(
         terminated(
             separated_list0(
@@ -137,7 +149,10 @@ fn func_params_pos(s: &str) -> PResult<Vec<FuncParam>> {
     .parse(s)
 }
 
-fn func_param_pos(is_required: bool) -> impl FnMut(&str) -> PResult<FuncParam> {
+fn func_param_pos<'s, E>(is_required: bool) -> impl FnMut(&'s str) -> PResult<FuncParam, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
     move |s| {
         context(
             "func_param_pos",
@@ -176,11 +191,13 @@ fn func_param_pos(is_required: bool) -> impl FnMut(&str) -> PResult<FuncParam> {
     }
 }
 
-fn func_params_named(s: &str) -> PResult<Vec<FuncParam>> {
+fn func_params_named<'s, E: ParseError<&'s str>>(s: &'s str) -> PResult<Vec<FuncParam>, E> {
     fail(s)
 }
 
-fn func_param_modifier_set(s: &str) -> PResult<FuncParamModifierSet> {
+fn func_param_modifier_set<'s, E: ParseError<&'s str>>(
+    s: &'s str,
+) -> PResult<FuncParamModifierSet, E> {
     let (s, modifier) = func_param_modifier(s)?;
 
     let modifiers = FuncParamModifierSet::from_iter([modifier]);
@@ -192,14 +209,17 @@ fn func_param_modifier_set(s: &str) -> PResult<FuncParamModifierSet> {
     )(s)
 }
 
-fn func_param_modifier(s: &str) -> PResult<FuncParamModifier> {
+fn func_param_modifier<'s, E: ParseError<&'s str>>(s: &'s str) -> PResult<FuncParamModifier, E> {
     alt((
         value(FuncParamModifier::Covariant, tag("covariant")),
         value(FuncParamModifier::Final, tag("final")),
     ))(s)
 }
 
-fn func_body(s: &str) -> PResult<FuncBody> {
+fn func_body<'s, E>(s: &'s str) -> PResult<FuncBody, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
     pair(
         alt((
             terminated(func_body_modifiers, opt(spbr)),
@@ -211,7 +231,10 @@ fn func_body(s: &str) -> PResult<FuncBody> {
     .parse(s)
 }
 
-fn func_body_content(s: &str) -> PResult<FuncBodyContent> {
+fn func_body_content<'s, E>(s: &'s str) -> PResult<FuncBodyContent, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
     alt((
         preceded(
             pair(tag("=>"), opt(spbr)),
@@ -222,7 +245,7 @@ fn func_body_content(s: &str) -> PResult<FuncBodyContent> {
     ))(s)
 }
 
-fn func_body_modifiers(s: &str) -> PResult<FuncBodyModifierSet> {
+fn func_body_modifiers<'s, E: ParseError<&'s str>>(s: &'s str) -> PResult<FuncBodyModifierSet, E> {
     let (s, modifier) = func_body_modifier(s)?;
 
     let modifiers = FuncBodyModifierSet::from_iter([modifier]);
@@ -234,7 +257,7 @@ fn func_body_modifiers(s: &str) -> PResult<FuncBodyModifierSet> {
     )(s)
 }
 
-fn func_body_modifier(s: &str) -> PResult<FuncBodyModifier> {
+fn func_body_modifier<'s, E: ParseError<&'s str>>(s: &'s str) -> PResult<FuncBodyModifier, E> {
     alt((
         value(
             FuncBodyModifier::SyncGenerator,
@@ -250,6 +273,8 @@ fn func_body_modifier(s: &str) -> PResult<FuncBodyModifier> {
 
 #[cfg(test)]
 mod tests {
+    use nom::error::VerboseError;
+
     use crate::dart::IdentifierExt;
 
     use super::*;
@@ -257,7 +282,7 @@ mod tests {
     #[test]
     fn func_block_test() {
         assert_eq!(
-            func("void f() {}x"),
+            func::<VerboseError<_>>("void f() {}x"),
             Ok((
                 "x",
                 Func {
@@ -280,7 +305,9 @@ mod tests {
     #[test]
     fn func_pos_params_test() {
         assert_eq!(
-            func("void f(int x, final double? y, [final bool mystery_flag = false]) {}x"),
+            func::<VerboseError<_>>(
+                "void f(int x, final double? y, [final bool mystery_flag = false]) {}x"
+            ),
             Ok((
                 "x",
                 Func {
@@ -333,7 +360,7 @@ mod tests {
     #[test]
     fn func_sync_gen_test() {
         assert_eq!(
-            func("Iterable<int> f() sync* { print('<_<'); yield 0; }x"),
+            func::<VerboseError<_>>("Iterable<int> f() sync* { print('<_<'); yield 0; }x"),
             Ok((
                 "x",
                 Func {
@@ -362,7 +389,7 @@ mod tests {
     #[test]
     fn func_expr_test() {
         assert_eq!(
-            func("static List<String> f() => const [\"abc\"];x"),
+            func::<VerboseError<_>>("static List<String> f() => const [\"abc\"];x"),
             Ok((
                 "x",
                 Func {
@@ -389,7 +416,7 @@ mod tests {
     #[test]
     fn func_expr_async_test() {
         assert_eq!(
-            func("static Future<String> f() async => \"abc\";x"),
+            func::<VerboseError<_>>("static Future<String> f() async => \"abc\";x"),
             Ok((
                 "x",
                 Func {
@@ -416,7 +443,7 @@ mod tests {
     #[test]
     fn func_modifier_set_test() {
         assert_eq!(
-            func_modifier_set("external static "),
+            func_modifier_set::<VerboseError<_>>("external static "),
             Ok((
                 " ",
                 FuncModifierSet::from_iter([FuncModifier::External, FuncModifier::Static])

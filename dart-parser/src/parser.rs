@@ -10,23 +10,33 @@ mod var;
 
 use std::str;
 
-use nom::{branch::alt, combinator::eof, multi::many0, sequence::terminated, Parser};
+use nom::{
+    branch::alt,
+    combinator::eof,
+    error::{ContextError, ParseError},
+    multi::many0,
+    sequence::terminated,
+    Parser,
+};
 
 use crate::{dart::*, parser::class::class};
 
 use self::{comment::comment, common::spbr, directive::directive, func::func, var::var};
 
-type PResult<'s, T> = nom::IResult<&'s str, T>;
+type PResult<'s, T, E> = Result<(&'s str, T), nom::Err<E>>;
 
-pub fn parse(s: &str) -> PResult<Vec<Dart>> {
+pub fn parse<'s, E>(s: &'s str) -> PResult<Vec<Dart>, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
     terminated(
         many0(alt((
             spbr.map(Dart::Verbatim),
+            comment.map(Dart::Comment),
             directive.map(Dart::Directive),
             var.map(Dart::Var),
             func.map(Dart::Func),
             class.map(Dart::Class),
-            comment.map(Dart::Comment),
         ))),
         eof,
     )(s)
@@ -34,6 +44,8 @@ pub fn parse(s: &str) -> PResult<Vec<Dart>> {
 
 #[cfg(test)]
 mod tests {
+
+    use nom::error::VerboseError;
 
     use crate::dart::{
         comment::Comment,
@@ -45,7 +57,7 @@ mod tests {
     #[test]
     fn mixed_test() {
         assert_eq!(
-            parse(DART_MIXED.trim_start()),
+            parse::<VerboseError<_>>(DART_MIXED.trim_start()),
             Ok((
                 "",
                 vec![
