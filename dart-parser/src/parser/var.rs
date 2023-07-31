@@ -1,9 +1,10 @@
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    combinator::{opt, value},
+    combinator::{cut, opt, success, value},
+    error::context,
     multi::fold_many0,
-    sequence::{pair, preceded, tuple},
+    sequence::{pair, preceded, terminated, tuple},
     Parser,
 };
 
@@ -16,30 +17,37 @@ use super::{
 };
 
 pub fn var(s: &str) -> PResult<Var> {
-    tuple((
-        alt((
-            var_modifier_set,
-            value(VarModifierSet::default(), tag("var")),
-        )),
-        alt((
-            // A type followed by a name
-            pair(
-                preceded(spbr, identifier_ext).map(Some),
-                preceded(opt(spbr), identifier),
-            ),
-            // Just a name
-            preceded(spbr, identifier).map(|id| (None, id)),
-        )),
-        // An initializer
-        opt(preceded(tuple((opt(spbr), tag("="), opt(spbr))), expr)),
-        preceded(opt(spbr), tag(";")),
-    ))
-    .map(|(modifiers, (var_type, name), initializer, _)| Var {
-        modifiers,
-        var_type,
-        name,
-        initializer,
-    })
+    context(
+        "var",
+        tuple((
+            alt((
+                terminated(var_modifier_set, spbr),
+                success(VarModifierSet::default()),
+            )),
+            opt(terminated(tag("var"), spbr)),
+            alt((
+                // A type followed by a name
+                pair(
+                    terminated(identifier_ext, opt(spbr)).map(Some),
+                    terminated(identifier, opt(spbr)),
+                ),
+                // Just a name
+                terminated(identifier, opt(spbr)).map(|id| (None, id)),
+            )),
+            // An initializer
+            opt(preceded(
+                pair(tag("="), opt(spbr)),
+                cut(terminated(expr, opt(spbr))),
+            )),
+            tag(";"),
+        ))
+        .map(|(modifiers, _, (var_type, name), initializer, _)| Var {
+            modifiers,
+            var_type,
+            name,
+            initializer,
+        }),
+    )
     .parse(s)
 }
 
@@ -73,7 +81,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn member_var_test() {
+    fn var_test() {
         assert_eq!(
             var("final String? name; "),
             Ok((
@@ -93,7 +101,7 @@ mod tests {
     }
 
     #[test]
-    fn member_var_init() {
+    fn var_init() {
         assert_eq!(
             var("static const type = \"type\"; "),
             Ok((
@@ -111,7 +119,71 @@ mod tests {
     }
 
     #[test]
-    fn member_modifier_set_test() {
+    fn var_mut_no_type_init() {
+        assert_eq!(
+            var("var i = 0; "),
+            Ok((
+                " ",
+                Var {
+                    modifiers: VarModifierSet::default(),
+                    var_type: None,
+                    name: "i",
+                    initializer: Some("0"),
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn var_mut_type_init() {
+        assert_eq!(
+            var("double x = 0; "),
+            Ok((
+                " ",
+                Var {
+                    modifiers: VarModifierSet::default(),
+                    var_type: Some(IdentifierExt::name("double")),
+                    name: "x",
+                    initializer: Some("0"),
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn var_mut_type() {
+        assert_eq!(
+            var("double x; "),
+            Ok((
+                " ",
+                Var {
+                    modifiers: VarModifierSet::default(),
+                    var_type: Some(IdentifierExt::name("double")),
+                    name: "x",
+                    initializer: None,
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn var_late_final_type_type() {
+        assert_eq!(
+            var("late final int crash_count; "),
+            Ok((
+                " ",
+                Var {
+                    modifiers: VarModifierSet::from_iter([VarModifier::Late, VarModifier::Final]),
+                    var_type: Some(IdentifierExt::name("int")),
+                    name: "crash_count",
+                    initializer: None,
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn var_modifier_set_test() {
         assert_eq!(
             var_modifier_set("late final "),
             Ok((

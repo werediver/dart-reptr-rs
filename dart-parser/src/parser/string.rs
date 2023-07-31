@@ -2,6 +2,7 @@ use nom::{
     branch::alt,
     bytes::complete::{is_not, tag},
     combinator::{cut, recognize},
+    error::context,
     multi::many0_count,
     sequence::{preceded, terminated},
 };
@@ -33,7 +34,7 @@ pub fn string_simple(s: &str) -> PResult<&str> {
         )),
     );
 
-    alt((dq, sq))(s)
+    context("string_simple", alt((dq, sq)))(s)
 }
 
 #[cfg(test)]

@@ -2,6 +2,7 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     combinator::{cut, opt, value},
+    error::context,
     multi::{fold_many0, separated_list1},
     sequence::{pair, preceded, terminated, tuple},
 };
@@ -11,22 +12,24 @@ use crate::dart::{Class, ClassModifier, ClassModifierSet, IdentifierExt};
 use super::{common::*, scope::block, PResult};
 
 pub fn class(s: &str) -> PResult<Class> {
-    let (s, modifiers) = terminated(class_modifier_set, spbr)(s)?;
-    let (s, name) = terminated(identifier, opt(spbr))(s)?;
-    let (s, extends) = opt(terminated(extends, spbr))(s)?;
-    let (s, implements) = opt(terminated(implements, spbr))(s)?;
-    let (s, body) = block(s)?;
+    context("class", |s| {
+        let (s, modifiers) = terminated(class_modifier_set, spbr)(s)?;
+        let (s, name) = terminated(identifier, opt(spbr))(s)?;
+        let (s, extends) = opt(terminated(extends_clause, spbr))(s)?;
+        let (s, implements) = opt(terminated(implements_clause, spbr))(s)?;
+        let (s, body) = block(s)?;
 
-    Ok((
-        s,
-        Class {
-            modifiers,
-            name,
-            extends,
-            implements: implements.unwrap_or(Vec::default()),
-            body,
-        },
-    ))
+        Ok((
+            s,
+            Class {
+                modifiers,
+                name,
+                extends,
+                implements: implements.unwrap_or(Vec::default()),
+                body,
+            },
+        ))
+    })(s)
 }
 
 fn class_modifier_set(s: &str) -> PResult<ClassModifierSet> {
@@ -53,17 +56,23 @@ fn class_modifier(s: &str) -> PResult<ClassModifier> {
     ))(s)
 }
 
-fn extends(s: &str) -> PResult<IdentifierExt> {
-    preceded(pair(tag("extends"), spbr), cut(identifier_ext))(s)
+fn extends_clause(s: &str) -> PResult<IdentifierExt> {
+    context(
+        "extends_clause",
+        preceded(pair(tag("extends"), spbr), cut(identifier_ext)),
+    )(s)
 }
 
-fn implements(s: &str) -> PResult<Vec<IdentifierExt>> {
-    preceded(
-        pair(tag("implements"), spbr),
-        cut(separated_list1(
-            tuple((opt(spbr), tag(","), opt(spbr))),
-            identifier_ext,
-        )),
+fn implements_clause(s: &str) -> PResult<Vec<IdentifierExt>> {
+    context(
+        "implements_clause",
+        preceded(
+            pair(tag("implements"), spbr),
+            cut(separated_list1(
+                tuple((opt(spbr), tag(","), opt(spbr))),
+                identifier_ext,
+            )),
+        ),
     )(s)
 }
 
@@ -74,7 +83,7 @@ mod tests {
     #[test]
     fn extends_test() {
         assert_eq!(
-            extends("extends Base "),
+            extends_clause("extends Base "),
             Ok((" ", IdentifierExt::name("Base")))
         );
     }
@@ -82,7 +91,7 @@ mod tests {
     #[test]
     fn implements_test() {
         assert_eq!(
-            implements("implements A, B, C "),
+            implements_clause("implements A, B, C "),
             Ok((
                 " ",
                 vec![
@@ -106,6 +115,23 @@ mod tests {
                     extends: Some(IdentifierExt::name("Base")),
                     implements: vec![IdentifierExt::name("A"), IdentifierExt::name("B")],
                     body: "{}"
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn class_property_test() {
+        assert_eq!(
+            class("class Record {\n  String id;\n}"),
+            Ok((
+                "",
+                Class {
+                    modifiers: ClassModifierSet::from_iter([ClassModifier::Class]),
+                    name: "Record",
+                    extends: None,
+                    implements: Vec::new(),
+                    body: "{\n  String id;\n}"
                 }
             ))
         );
