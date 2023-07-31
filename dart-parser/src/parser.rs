@@ -1,4 +1,5 @@
 mod class;
+mod comment;
 mod common;
 mod directive;
 mod expr;
@@ -9,58 +10,37 @@ mod var;
 
 use std::str;
 
-use nom::{
-    branch::alt,
-    bytes::complete::{is_not, tag},
-    combinator::{eof, recognize},
-    multi::many0,
-    sequence::{terminated, tuple},
-    Parser,
-};
+use nom::{branch::alt, combinator::eof, multi::many0, sequence::terminated, Parser};
 
-use crate::{
-    dart::*,
-    parser::{class::class, common::*},
-};
+use crate::{dart::*, parser::class::class};
 
-use self::{directive::directive, func::func, var::var};
+use self::{comment::comment, common::spbr, directive::directive, func::func, var::var};
 
 type PResult<'s, T> = nom::IResult<&'s str, T>;
 
 pub fn parse(s: &str) -> PResult<Vec<Dart>> {
     terminated(
         many0(alt((
-            alt((spbr, comment)).map(Dart::Verbatim),
+            spbr.map(Dart::Verbatim),
             directive.map(Dart::Directive),
             var.map(Dart::Var),
             func.map(Dart::Func),
             class.map(Dart::Class),
+            comment.map(Dart::Comment),
         ))),
         eof,
     )(s)
 }
 
-/// The single-line comment parser consumes the trailing line-break, because
-/// that line-break terminates the comment rather than being "just" whitespace.
-fn comment(s: &str) -> PResult<&str> {
-    recognize(tuple((tag("//"), is_not("\r\n"), alt((br, eof)))))(s)
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::dart::directive::{Directive, Import};
+
+    use crate::dart::{
+        comment::Comment,
+        directive::{Directive, Import},
+    };
 
     use super::*;
-
-    #[test]
-    fn comment_test() {
-        assert_eq!(comment("// A comment\nx"), Ok(("x", "// A comment\n")));
-    }
-
-    #[test]
-    fn comment_eof_test() {
-        assert_eq!(comment("// A comment"), Ok(("", "// A comment")));
-    }
 
     #[test]
     fn mixed_test() {
@@ -78,7 +58,8 @@ mod tests {
                     Dart::Verbatim("\n\n"),
                     Dart::Directive(Directive::Part("types.g.dart")),
                     Dart::Verbatim("\n\n"),
-                    Dart::Verbatim("// A comment\n"),
+                    Dart::Comment(Comment::SingleLine("// A comment\n")),
+                    Dart::Comment(Comment::MultiLine("/*\nAnother comment\n*/")),
                     Dart::Verbatim("\n"),
                     Dart::Var(Var {
                         modifiers: VarModifierSet::from_iter([VarModifier::Const]),
@@ -183,7 +164,9 @@ import 'package:path/path.dart' as p;
 part 'types.g.dart';
 
 // A comment
-
+/*
+Another comment
+*/
 const category = "mixed bag";
 late final int crash_count;
 

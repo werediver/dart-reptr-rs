@@ -2,6 +2,7 @@ mod class;
 pub mod directive;
 mod func;
 mod var;
+pub mod comment;
 
 pub use class::*;
 pub use func::*;
@@ -13,6 +14,7 @@ pub enum Dart<'s> {
     Directive(directive::Directive<'s>),
     Var(Var<'s>),
     Func(Func<'s>),
+    Comment(comment::Comment<'s>),
     Class(Class<'s>),
 }
 
