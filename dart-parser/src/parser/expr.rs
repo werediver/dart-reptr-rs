@@ -1,4 +1,9 @@
-use nom::{branch::alt, bytes::complete::is_not, combinator::recognize};
+use nom::{
+    branch::alt,
+    bytes::complete::is_not,
+    combinator::recognize,
+    error::{ContextError, ParseError},
+};
 
 use crate::parser::{
     common::skip_many0,
@@ -8,7 +13,10 @@ use crate::parser::{
 use super::PResult;
 
 /// This is a pretty shady expression parser.
-pub fn expr(s: &str) -> PResult<&str> {
+pub fn expr<'s, E>(s: &'s str) -> PResult<&str, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
     const EXPR_STOP_CHARS_EXT: &str = "()[]{},;";
     debug_assert!(EXPR_STOP_CHARS_EXT.starts_with(SCOPE_STOP_CHARS));
 
@@ -17,17 +25,22 @@ pub fn expr(s: &str) -> PResult<&str> {
 
 #[cfg(test)]
 mod tests {
+    use nom::error::VerboseError;
+
     use super::*;
 
     #[test]
     fn expr_string_test() {
-        assert_eq!(expr("\"text\"; "), Ok(("; ", "\"text\"")));
+        assert_eq!(
+            expr::<VerboseError<_>>("\"text\"; "),
+            Ok(("; ", "\"text\""))
+        );
     }
 
     #[test]
     fn expr_test() {
         assert_eq!(
-            expr("f(\"text\", (a) => null) + 1; "),
+            expr::<VerboseError<_>>("f(\"text\", (a) => null) + 1; "),
             Ok(("; ", "f(\"text\", (a) => null) + 1"))
         );
     }

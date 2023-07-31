@@ -2,7 +2,7 @@ use nom::{
     branch::alt,
     bytes::complete::{is_a, tag, take_while, take_while_m_n},
     combinator::{cut, fail, opt, recognize},
-    error::{context, ParseError},
+    error::{context, ContextError, ParseError},
     multi::{fold_many0, separated_list1},
     sequence::{pair, preceded, terminated, tuple},
     InputLength, Parser,
@@ -22,16 +22,19 @@ where
 }
 
 /// Parse one or more whitespace characters, including line breaks.
-pub fn spbr(s: &str) -> PResult<&str> {
+pub fn spbr<'s, E: ParseError<&'s str>>(s: &'s str) -> PResult<&str, E> {
     is_a(" \t\r\n")(s)
 }
 
 /// Parse exactly one line break.
-pub fn br(s: &str) -> PResult<&str> {
+pub fn br<'s, E: ParseError<&'s str>>(s: &'s str) -> PResult<&str, E> {
     alt((tag("\n"), tag("\r\n"), tag("\r")))(s)
 }
 
-pub fn identifier(s: &str) -> PResult<&str> {
+pub fn identifier<'s, E>(s: &'s str) -> PResult<&str, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
     // Based on [Keywords](https://dart.dev/language/keywords).
     const RESERVED: [&str; 27] = [
         "assert", "break", "case", "catch", "class", "const", "continue", "default", "do", "else",
@@ -65,7 +68,10 @@ pub fn identifier(s: &str) -> PResult<&str> {
 }
 
 /// Parse an identifier with type arguments and the nullability indicator (e.g. `Future<int>?`).
-pub fn identifier_ext(s: &str) -> PResult<IdentifierExt> {
+pub fn identifier_ext<'s, E>(s: &'s str) -> PResult<IdentifierExt, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
     context(
         "identifier_ext",
         tuple((
@@ -90,18 +96,20 @@ pub fn identifier_ext(s: &str) -> PResult<IdentifierExt> {
 
 #[cfg(test)]
 mod tests {
+    use nom::error::VerboseError;
+
     use super::*;
 
     #[test]
     fn sp_test() {
         let s = "  \n\t\r\nx";
-        assert_eq!(spbr(s), Ok(("x", "  \n\t\r\n")));
+        assert_eq!(spbr::<VerboseError<_>>(s), Ok(("x", "  \n\t\r\n")));
     }
 
     #[test]
     fn identifier_ext_test() {
         assert_eq!(
-            identifier_ext("Map<String, Object>? "),
+            identifier_ext::<VerboseError<_>>("Map<String, Object>? "),
             Ok((
                 " ",
                 IdentifierExt {
@@ -116,7 +124,7 @@ mod tests {
     #[test]
     fn identifier_ext_nested_test() {
         assert_eq!(
-            identifier_ext("Map<String, List<int>> "),
+            identifier_ext::<VerboseError<_>>("Map<String, List<int>> "),
             Ok((
                 " ",
                 IdentifierExt {

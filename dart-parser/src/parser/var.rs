@@ -2,7 +2,7 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     combinator::{cut, opt, success, value},
-    error::context,
+    error::{context, ContextError, ParseError},
     multi::fold_many0,
     sequence::{pair, preceded, terminated, tuple},
     Parser,
@@ -16,7 +16,10 @@ use super::{
     PResult,
 };
 
-pub fn var(s: &str) -> PResult<Var> {
+pub fn var<'s, E>(s: &'s str) -> PResult<Var, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
     context(
         "var",
         tuple((
@@ -51,7 +54,7 @@ pub fn var(s: &str) -> PResult<Var> {
     .parse(s)
 }
 
-fn var_modifier_set(s: &str) -> PResult<VarModifierSet> {
+fn var_modifier_set<'s, E: ParseError<&'s str>>(s: &'s str) -> PResult<VarModifierSet, E> {
     let (s, modifier) = var_modifier(s)?;
 
     let modifiers = VarModifierSet::from_iter([modifier]);
@@ -63,7 +66,7 @@ fn var_modifier_set(s: &str) -> PResult<VarModifierSet> {
     )(s)
 }
 
-fn var_modifier(s: &str) -> PResult<VarModifier> {
+fn var_modifier<'s, E: ParseError<&'s str>>(s: &'s str) -> PResult<VarModifier, E> {
     alt((
         value(VarModifier::External, tag("external")),
         value(VarModifier::Static, tag("static")),
@@ -76,6 +79,8 @@ fn var_modifier(s: &str) -> PResult<VarModifier> {
 
 #[cfg(test)]
 mod tests {
+    use nom::error::VerboseError;
+
     use crate::dart::IdentifierExt;
 
     use super::*;
@@ -83,7 +88,7 @@ mod tests {
     #[test]
     fn var_test() {
         assert_eq!(
-            var("final String? name; "),
+            var::<VerboseError<_>>("final String? name; "),
             Ok((
                 " ",
                 Var {
@@ -103,7 +108,7 @@ mod tests {
     #[test]
     fn var_init() {
         assert_eq!(
-            var("static const type = \"type\"; "),
+            var::<VerboseError<_>>("static const type = \"type\"; "),
             Ok((
                 " ",
                 Var {
@@ -121,7 +126,7 @@ mod tests {
     #[test]
     fn var_mut_no_type_init() {
         assert_eq!(
-            var("var i = 0; "),
+            var::<VerboseError<_>>("var i = 0; "),
             Ok((
                 " ",
                 Var {
@@ -137,7 +142,7 @@ mod tests {
     #[test]
     fn var_mut_type_init() {
         assert_eq!(
-            var("double x = 0; "),
+            var::<VerboseError<_>>("double x = 0; "),
             Ok((
                 " ",
                 Var {
@@ -153,7 +158,7 @@ mod tests {
     #[test]
     fn var_mut_type() {
         assert_eq!(
-            var("double x; "),
+            var::<VerboseError<_>>("double x; "),
             Ok((
                 " ",
                 Var {
@@ -169,7 +174,7 @@ mod tests {
     #[test]
     fn var_late_final_type_type() {
         assert_eq!(
-            var("late final int crash_count; "),
+            var::<VerboseError<_>>("late final int crash_count; "),
             Ok((
                 " ",
                 Var {
@@ -185,7 +190,7 @@ mod tests {
     #[test]
     fn var_modifier_set_test() {
         assert_eq!(
-            var_modifier_set("late final "),
+            var_modifier_set::<VerboseError<_>>("late final "),
             Ok((
                 " ",
                 VarModifierSet::from_iter([VarModifier::Late, VarModifier::Final].into_iter())

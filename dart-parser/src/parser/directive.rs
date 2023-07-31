@@ -2,7 +2,7 @@ use nom::{
     branch::{alt, permutation},
     bytes::complete::tag,
     combinator::{cut, opt},
-    error::context,
+    error::{context, ContextError, ParseError},
     multi::separated_list1,
     sequence::{pair, preceded, terminated, tuple},
     Parser,
@@ -16,7 +16,10 @@ use super::{
     PResult,
 };
 
-pub fn directive(s: &str) -> PResult<Directive> {
+pub fn directive<'s, E>(s: &'s str) -> PResult<Directive, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
     context(
         "directive",
         alt((
@@ -28,7 +31,10 @@ pub fn directive(s: &str) -> PResult<Directive> {
     )(s)
 }
 
-fn export(s: &str) -> PResult<&str> {
+fn export<'s, E>(s: &'s str) -> PResult<&str, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
     context(
         "export",
         preceded(
@@ -38,7 +44,10 @@ fn export(s: &str) -> PResult<&str> {
     )(s)
 }
 
-fn import(s: &str) -> PResult<Import> {
+fn import<'s, E>(s: &'s str) -> PResult<Import, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
     context(
         "import",
         preceded(
@@ -80,7 +89,10 @@ fn import(s: &str) -> PResult<Import> {
     .parse(s)
 }
 
-fn part(s: &str) -> PResult<&str> {
+fn part<'s, E>(s: &'s str) -> PResult<&str, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
     context(
         "part",
         preceded(
@@ -90,7 +102,10 @@ fn part(s: &str) -> PResult<&str> {
     )(s)
 }
 
-fn part_of(s: &str) -> PResult<PartOf> {
+fn part_of<'s, E>(s: &'s str) -> PResult<PartOf, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
     context(
         "part_of",
         preceded(
@@ -108,12 +123,14 @@ fn part_of(s: &str) -> PResult<PartOf> {
 
 #[cfg(test)]
 mod tests {
+    use nom::error::VerboseError;
+
     use super::*;
 
     #[test]
     fn export_test() {
         assert_eq!(
-            export("export 'src/utils.dart';x"),
+            export::<VerboseError<_>>("export 'src/utils.dart';x"),
             Ok(("x", "src/utils.dart"))
         );
     }
@@ -121,7 +138,7 @@ mod tests {
     #[test]
     fn import_test() {
         assert_eq!(
-            import("import 'dart:math';x"),
+            import::<VerboseError<_>>("import 'dart:math';x"),
             Ok(("x", Import::target("dart:math")))
         );
     }
@@ -129,7 +146,7 @@ mod tests {
     #[test]
     fn import_as_test() {
         assert_eq!(
-            import("import 'package:path/path.dart' as p;x"),
+            import::<VerboseError<_>>("import 'package:path/path.dart' as p;x"),
             Ok(("x", Import::target_as("package:path/path.dart", "p")))
         );
     }
@@ -137,7 +154,7 @@ mod tests {
     #[test]
     fn import_show_test() {
         assert_eq!(
-            import("import 'package:path/path.dart' show join;x"),
+            import::<VerboseError<_>>("import 'package:path/path.dart' show join;x"),
             Ok((
                 "x",
                 Import {
@@ -153,7 +170,7 @@ mod tests {
     #[test]
     fn import_hide_test() {
         assert_eq!(
-            import("import 'package:path/path.dart' hide join, basename;x"),
+            import::<VerboseError<_>>("import 'package:path/path.dart' hide join, basename;x"),
             Ok((
                 "x",
                 Import {
@@ -169,7 +186,9 @@ mod tests {
     #[test]
     fn import_as_show_hide_test() {
         assert_eq!(
-            import("import 'package:path/path.dart' as p show join, basename hide dirname;x"),
+            import::<VerboseError<_>>(
+                "import 'package:path/path.dart' as p show join, basename hide dirname;x"
+            ),
             Ok((
                 "x",
                 Import {
@@ -185,7 +204,7 @@ mod tests {
     #[test]
     fn part_test() {
         assert_eq!(
-            part("part '../library.dart';x"),
+            part::<VerboseError<_>>("part '../library.dart';x"),
             Ok(("x", "../library.dart"))
         );
     }
@@ -193,7 +212,7 @@ mod tests {
     #[test]
     fn part_of_path_test() {
         assert_eq!(
-            part_of("part of '../library.dart';x"),
+            part_of::<VerboseError<_>>("part of '../library.dart';x"),
             Ok(("x", PartOf::LibPath("../library.dart")))
         );
     }
@@ -201,7 +220,7 @@ mod tests {
     #[test]
     fn part_of_name_test() {
         assert_eq!(
-            part_of("part of library;x"),
+            part_of::<VerboseError<_>>("part of library;x"),
             Ok(("x", PartOf::LibName("library")))
         );
     }

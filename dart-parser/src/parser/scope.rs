@@ -3,7 +3,7 @@ use nom::{
     bytes::complete::is_not,
     character::complete::char,
     combinator::{cut, recognize},
-    error::context,
+    error::{context, ContextError, ParseError},
     sequence::{preceded, terminated},
 };
 
@@ -13,16 +13,25 @@ use super::PResult;
 
 pub const SCOPE_STOP_CHARS: &str = "()[]{}";
 
-pub fn any_scope(s: &str) -> PResult<&str> {
+pub fn any_scope<'s, E>(s: &'s str) -> PResult<&str, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
     recognize(alt((scope('(', ')'), scope('[', ']'), scope('{', '}'))))(s)
 }
 
-pub fn block(s: &str) -> PResult<&str> {
+pub fn block<'s, E>(s: &'s str) -> PResult<&str, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
     recognize(scope('{', '}'))(s)
 }
 
 /// Note that this parser strips the outermost brackets.
-fn scope<'s>(open: char, close: char) -> impl FnMut(&'s str) -> PResult<&'s str> {
+fn scope<'s, E>(open: char, close: char) -> impl FnMut(&'s str) -> PResult<&'s str, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
     context(
         "scope",
         preceded(
