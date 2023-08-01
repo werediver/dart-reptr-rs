@@ -1,7 +1,7 @@
 use nom::{
-    branch::{alt, permutation},
+    branch::alt,
     bytes::complete::tag,
-    combinator::{cut, opt},
+    combinator::{cut, opt, success},
     error::{context, ContextError, ParseError},
     multi::separated_list1,
     sequence::{pair, preceded, terminated, tuple},
@@ -59,21 +59,18 @@ where
                         pair(tag("as"), spbr),
                         terminated(identifier, opt(spbr)),
                     )),
-                    permutation((
-                        opt(preceded(
-                            pair(tag("show"), spbr),
-                            separated_list1(
-                                pair(tag(","), opt(spbr)),
-                                terminated(identifier, opt(spbr)),
-                            ),
-                        )),
-                        opt(preceded(
-                            pair(tag("hide"), spbr),
-                            separated_list1(
-                                pair(tag(","), opt(spbr)),
-                                terminated(identifier, opt(spbr)),
-                            ),
-                        )),
+                    alt((
+                        terminated(
+                            pair(show_clause, opt(preceded(opt(spbr), hide_clause)))
+                                .map(|(show, hide)| (Some(show), hide)),
+                            opt(spbr),
+                        ),
+                        terminated(
+                            pair(hide_clause, opt(preceded(opt(spbr), show_clause)))
+                                .map(|(hide, show)| (show, Some(hide))),
+                            opt(spbr),
+                        ),
+                        success((None, None)),
                     )),
                 )),
                 tag(";"),
@@ -82,11 +79,31 @@ where
         .map(|(target, prefix, (show, hide))| Import {
             target,
             prefix,
-            show: show.unwrap_or(Vec::default()),
-            hide: hide.unwrap_or(Vec::default()),
+            show: show.unwrap_or(Vec::new()),
+            hide: hide.unwrap_or(Vec::new()),
         }),
     )
     .parse(s)
+}
+
+fn show_clause<'s, E>(s: &'s str) -> PResult<Vec<&str>, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
+    preceded(
+        pair(tag("show"), spbr),
+        separated_list1(tuple((opt(spbr), tag(","), opt(spbr))), identifier),
+    )(s)
+}
+
+fn hide_clause<'s, E>(s: &'s str) -> PResult<Vec<&str>, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
+    preceded(
+        pair(tag("hide"), spbr),
+        separated_list1(tuple((opt(spbr), tag(","), opt(spbr))), identifier),
+    )(s)
 }
 
 fn part<'s, E>(s: &'s str) -> PResult<&str, E>
@@ -188,6 +205,24 @@ mod tests {
         assert_eq!(
             import::<VerboseError<_>>(
                 "import 'package:path/path.dart' as p show join, basename hide dirname;x"
+            ),
+            Ok((
+                "x",
+                Import {
+                    target: "package:path/path.dart",
+                    prefix: Some("p"),
+                    show: vec!["join", "basename"],
+                    hide: vec!["dirname"],
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn import_as_hide_show_test() {
+        assert_eq!(
+            import::<VerboseError<_>>(
+                "import 'package:path/path.dart' as p hide dirname show join, basename;x"
             ),
             Ok((
                 "x",

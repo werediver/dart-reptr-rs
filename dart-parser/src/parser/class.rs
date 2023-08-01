@@ -7,7 +7,10 @@ use nom::{
     sequence::{pair, preceded, terminated, tuple},
 };
 
-use crate::dart::{Class, ClassModifier, ClassModifierSet, IdentifierExt};
+use crate::dart::{
+    class::{ClassModifier, ClassModifierSet},
+    Class, IdentifierExt,
+};
 
 use super::{common::*, scope::block, PResult};
 
@@ -69,7 +72,7 @@ where
     )(s)
 }
 
-fn implements_clause<'s, E>(s: &'s str) -> PResult<Vec<IdentifierExt>, E>
+pub fn implements_clause<'s, E>(s: &'s str) -> PResult<Vec<IdentifierExt>, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {

@@ -2,6 +2,7 @@ mod class;
 mod comment;
 mod common;
 mod directive;
+mod enum_ty;
 mod expr;
 mod func;
 mod scope;
@@ -21,7 +22,9 @@ use nom::{
 
 use crate::{dart::*, parser::class::class};
 
-use self::{comment::comment, common::spbr, directive::directive, func::func, var::var};
+use self::{
+    comment::comment, common::spbr, directive::directive, enum_ty::enum_ty, func::func, var::var,
+};
 
 type PResult<'s, T, E> = Result<(&'s str, T), nom::Err<E>>;
 
@@ -37,6 +40,7 @@ where
             var.map(Dart::Var),
             func.map(Dart::Func),
             class.map(Dart::Class),
+            enum_ty.map(Dart::Enum),
         ))),
         eof,
     )(s)
@@ -48,8 +52,14 @@ mod tests {
     use nom::error::VerboseError;
 
     use crate::dart::{
+        class::{ClassModifier, ClassModifierSet},
         comment::Comment,
         directive::{Directive, Import},
+        func::{
+            FuncBody, FuncBodyContent, FuncBodyModifierSet, FuncModifierSet, FuncParam,
+            FuncParamModifierSet, FuncParams,
+        },
+        var::{VarModifier, VarModifierSet},
     };
 
     use super::*;

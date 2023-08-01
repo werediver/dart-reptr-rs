@@ -9,8 +9,11 @@ use nom::{
 };
 
 use crate::dart::{
-    Func, FuncBody, FuncBodyContent, FuncBodyModifier, FuncBodyModifierSet, FuncModifier,
-    FuncModifierSet, FuncParam, FuncParamModifier, FuncParamModifierSet, FuncParams,
+    func::{
+        FuncBody, FuncBodyContent, FuncBodyModifier, FuncBodyModifierSet, FuncModifier,
+        FuncModifierSet, FuncParam, FuncParamModifier, FuncParamModifierSet, FuncParams,
+    },
+    Func,
 };
 
 use super::{
@@ -121,6 +124,7 @@ where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
     pair(
+        // Required positional parameters
         terminated(
             separated_list0(
                 tuple((opt(spbr), tag(","), opt(spbr))),
@@ -128,15 +132,16 @@ where
             ),
             opt(tuple((opt(spbr), tag(","), opt(spbr)))),
         ),
+        // Optional positional parameters
         opt(preceded(
             pair(tag("["), opt(spbr)),
-            terminated(
+            cut(terminated(
                 separated_list0(
                     tuple((opt(spbr), tag(","), opt(spbr))),
                     func_param_pos(false),
                 ),
                 tuple((opt(spbr), opt(pair(tag(","), opt(spbr))), tag("]"))),
-            ),
+            )),
         )),
     )
     .map(|(mut req, opt)| {
@@ -191,8 +196,61 @@ where
     }
 }
 
-fn func_params_named<'s, E: ParseError<&'s str>>(s: &'s str) -> PResult<Vec<FuncParam>, E> {
-    fail(s)
+fn func_params_named<'s, E>(s: &'s str) -> PResult<Vec<FuncParam>, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
+    context(
+        "func_params_named",
+        preceded(
+            pair(tag("{"), opt(spbr)),
+            cut(terminated(
+                separated_list0(tuple((opt(spbr), tag(","), opt(spbr))), func_param_named),
+                tuple((opt(pair(tag(","), opt(spbr))), tag("}"))),
+            )),
+        ),
+    )(s)
+}
+
+fn func_param_named<'s, E>(s: &'s str) -> PResult<FuncParam, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
+    context(
+        "func_param_named",
+        tuple((
+            opt(terminated(tag("required"), spbr)),
+            alt((
+                terminated(func_param_modifier_set, spbr),
+                success(FuncParamModifierSet::default()),
+            )),
+            opt(terminated(tag("var"), spbr)),
+            alt((
+                // A type followed by a name
+                pair(
+                    terminated(identifier_ext, opt(spbr)).map(Some),
+                    terminated(identifier, opt(spbr)),
+                ),
+                // Just a name
+                terminated(identifier, opt(spbr)).map(|id| (None, id)),
+            )),
+            // An initializer
+            opt(preceded(
+                pair(tag("="), opt(spbr)),
+                cut(terminated(expr, opt(spbr))),
+            )),
+        ))
+        .map(
+            |(req, modifiers, _, (param_type, name), initializer)| FuncParam {
+                is_required: req.is_some(),
+                modifiers,
+                param_type,
+                name,
+                initializer,
+            },
+        ),
+    )
+    .parse(s)
 }
 
 fn func_param_modifier_set<'s, E: ParseError<&'s str>>(
