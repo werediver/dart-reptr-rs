@@ -1,9 +1,8 @@
+use read_dir_ext::ReadDirExt;
 use std::{env, fs, io, path::Path};
 
 mod error_context;
 mod read_dir_ext;
-
-use read_dir_ext::ReadDirExt;
 
 use crate::error_context::ErrorContext;
 
@@ -11,7 +10,7 @@ fn main() -> io::Result<()> {
     let cwd = env::current_dir()?;
 
     let read_dir_ext = ReadDirExt::new(
-        cwd,
+        cwd.clone(),
         |context, path| {
             let dir_name = path.file_name().and_then(|s| s.to_str());
             let context = if dir_name.is_some_and(|s| s.starts_with('.')) {
@@ -51,15 +50,18 @@ fn main() -> io::Result<()> {
                 total_count += 1;
                 let result = try_load_parse(&path);
                 // let result = try_mmap_parse(&path);
+
+                let rel_path = path.strip_prefix(&cwd).unwrap();
+
                 match result {
                     Ok(_) => {
                         success_count += 1;
-                        // println!("[Success] [{context}] {path:?}");
-                        print!("*");
+                        // println!("[PARSED] [{context}] {rel_path:?}");
+                        println!("[PARSED] {rel_path:?}");
                     }
-                    Err(_) => {
-                        // println!("[Failure] [{context}] {path:?}");
-                        print!(" ");
+                    Err(e) => {
+                        // println!("[PARSED] [{context}] {rel_path:?}");
+                        println!("[FAILED] {rel_path:?}\n{e}");
                     }
                 }
             }

@@ -51,6 +51,8 @@ where
 
     fn is_part_char(c: char) -> bool {
         is_start_char(c) || c.is_ascii_digit()
+        // Parse composite identifiers as a single identifier
+        || c == '.'
     }
 
     context("identifier", |s| {

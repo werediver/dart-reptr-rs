@@ -8,7 +8,10 @@ use nom::{
     Parser,
 };
 
-use crate::dart::{Var, VarModifier, VarModifierSet};
+use crate::dart::{
+    var::{VarModifier, VarModifierSet},
+    Var,
+};
 
 use super::{
     common::{identifier, identifier_ext, spbr},
