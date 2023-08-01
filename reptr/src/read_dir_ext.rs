@@ -51,8 +51,11 @@ where
                     self.current = None;
                 }
             } else if let Some((context, path_buf)) = self.q.pop() {
-                let context =
-                    io::Result::Ok(context).or_else(|_| (self.map_dir)(None, &path_buf))?;
+                let context = if context.is_some() {
+                    context
+                } else {
+                    (self.map_dir)(None, &path_buf)?
+                };
                 self.current = Some((
                     context,
                     fs::read_dir(&path_buf).context_lazy(|| {
