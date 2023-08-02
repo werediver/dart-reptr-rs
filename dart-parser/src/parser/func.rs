@@ -10,8 +10,8 @@ use nom::{
 
 use crate::dart::{
     func::{
-        FuncBody, FuncBodyContent, FuncBodyModifier, FuncBodyModifierSet, FuncModifier,
-        FuncModifierSet, FuncParam, FuncParamModifier, FuncParamModifierSet, FuncParams,
+        FuncBody, FuncBodyContent, FuncBodyModifier, FuncModifier, FuncModifierSet, FuncParam,
+        FuncParamModifier, FuncParamModifierSet, FuncParams,
     },
     Func,
 };
@@ -95,7 +95,7 @@ fn type_param<'s, E: ParseError<&'s str>>(s: &'s str) -> PResult<(), E> {
     fail(s)
 }
 
-fn func_params<'s, E>(s: &'s str) -> PResult<FuncParams, E>
+pub fn func_params<'s, E>(s: &'s str) -> PResult<FuncParams, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
@@ -279,17 +279,14 @@ where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
     pair(
-        alt((
-            terminated(func_body_modifiers, opt(spbr)),
-            success(FuncBodyModifierSet::default()),
-        )),
+        opt(terminated(func_body_modifier, opt(spbr))),
         func_body_content,
     )
-    .map(|(modifiers, content)| FuncBody { modifiers, content })
+    .map(|(modifier, content)| FuncBody { modifier, content })
     .parse(s)
 }
 
-fn func_body_content<'s, E>(s: &'s str) -> PResult<FuncBodyContent, E>
+pub fn func_body_content<'s, E>(s: &'s str) -> PResult<FuncBodyContent, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
@@ -301,18 +298,6 @@ where
         .map(FuncBodyContent::Expr),
         block.map(FuncBodyContent::Block),
     ))(s)
-}
-
-fn func_body_modifiers<'s, E: ParseError<&'s str>>(s: &'s str) -> PResult<FuncBodyModifierSet, E> {
-    let (s, modifier) = func_body_modifier(s)?;
-
-    let modifiers = FuncBodyModifierSet::from_iter([modifier]);
-
-    fold_many0(
-        preceded(spbr, func_body_modifier),
-        move || modifiers,
-        |modifiers, modifier| modifiers.with(modifier),
-    )(s)
 }
 
 fn func_body_modifier<'s, E: ParseError<&'s str>>(s: &'s str) -> PResult<FuncBodyModifier, E> {
@@ -352,7 +337,7 @@ mod tests {
                         named: Vec::new(),
                     },
                     body: Some(FuncBody {
-                        modifiers: FuncBodyModifierSet::default(),
+                        modifier: None,
                         content: FuncBodyContent::Block("{}")
                     })
                 }
@@ -407,7 +392,7 @@ mod tests {
                         named: Vec::new(),
                     },
                     body: Some(FuncBody {
-                        modifiers: FuncBodyModifierSet::default(),
+                        modifier: None,
                         content: FuncBodyContent::Block("{}")
                     })
                 }
@@ -434,9 +419,7 @@ mod tests {
                         named: Vec::new(),
                     },
                     body: Some(FuncBody {
-                        modifiers: FuncBodyModifierSet::from_iter([
-                            FuncBodyModifier::SyncGenerator
-                        ]),
+                        modifier: Some(FuncBodyModifier::SyncGenerator),
                         content: FuncBodyContent::Block("{ print('<_<'); yield 0; }")
                     })
                 }
@@ -463,7 +446,7 @@ mod tests {
                         named: Vec::new(),
                     },
                     body: Some(FuncBody {
-                        modifiers: FuncBodyModifierSet::default(),
+                        modifier: None,
                         content: FuncBodyContent::Expr("const [\"abc\"]")
                     })
                 }
@@ -490,7 +473,7 @@ mod tests {
                         named: Vec::new(),
                     },
                     body: Some(FuncBody {
-                        modifiers: FuncBodyModifierSet::from_iter([FuncBodyModifier::Async]),
+                        modifier: Some(FuncBodyModifier::Async),
                         content: FuncBodyContent::Expr("\"abc\"")
                     })
                 }
