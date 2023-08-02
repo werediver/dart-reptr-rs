@@ -4,3 +4,7 @@ members = [
   "dart-parser",
   "tiny-set",
 ]
+
+[profile.dev.package."*"]
+opt-level = "s"
+incremental = false
