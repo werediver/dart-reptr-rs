@@ -52,12 +52,11 @@ mod tests {
     use nom::error::VerboseError;
 
     use crate::dart::{
-        class::{ClassModifier, ClassModifierSet},
+        class::{ClassMember, ClassModifier, ClassModifierSet, Constructor},
         comment::Comment,
         directive::{Directive, Import},
         func::{
-            FuncBody, FuncBodyContent, FuncBodyModifierSet, FuncModifierSet, FuncParam,
-            FuncParamModifierSet, FuncParams,
+            FuncBody, FuncBodyContent, FuncModifierSet, FuncParam, FuncParamModifierSet, FuncParams,
         },
         var::{VarModifier, VarModifierSet},
     };
@@ -105,7 +104,32 @@ mod tests {
                         name: "Base",
                         extends: None,
                         implements: Vec::default(),
-                        body: "{\n  String id;\n}",
+                        body: vec![
+                            ClassMember::Verbatim("\n  "),
+                            ClassMember::Constructor(Constructor {
+                                modifier: None,
+                                name: "Base",
+                                params: FuncParams {
+                                    positional: vec![FuncParam {
+                                        is_required: true,
+                                        modifiers: FuncParamModifierSet::default(),
+                                        param_type: None,
+                                        name: "this.id",
+                                        initializer: None
+                                    }],
+                                    named: Vec::new(),
+                                },
+                                body: None,
+                            }),
+                            ClassMember::Verbatim("\n\n  "),
+                            ClassMember::Var(Var {
+                                modifiers: VarModifierSet::from_iter([VarModifier::Final]),
+                                var_type: Some(IdentifierExt::name("String")),
+                                name: "id",
+                                initializer: None,
+                            }),
+                            ClassMember::Verbatim("\n"),
+                        ],
                     }),
                     Dart::Verbatim("\n\n"),
                     Dart::Class(Class {
@@ -131,7 +155,16 @@ mod tests {
                             },
                             IdentifierExt::name("C")
                         ],
-                        body: "{\n  String name;\n}",
+                        body: vec![
+                            ClassMember::Verbatim("\n  "),
+                            ClassMember::Var(Var {
+                                modifiers: VarModifierSet::default(),
+                                var_type: Some(IdentifierExt::name("String")),
+                                name: "name",
+                                initializer: None,
+                            }),
+                            ClassMember::Verbatim("\n"),
+                        ],
                     }),
                     Dart::Verbatim("\n\n"),
                     Dart::Func(Func {
@@ -169,7 +202,7 @@ mod tests {
                             named: Vec::new(),
                         },
                         body: Some(FuncBody {
-                            modifiers: FuncBodyModifierSet::default(),
+                            modifier: None,
                             content: FuncBodyContent::Block("{\n    print(\"Hello?\");\n}")
                         })
                     }),
@@ -193,7 +226,9 @@ const category = "mixed bag";
 late final int crash_count;
 
 class Base {
-  String id;
+  Base(this.id);
+
+  final String id;
 }
 
 class Record extends Base implements A<Future<void>, B?>, C {

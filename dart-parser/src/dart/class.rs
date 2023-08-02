@@ -1,6 +1,9 @@
 use tiny_set::with_tiny_set;
 
-use super::IdentifierExt;
+use super::{
+    func::{FuncBodyContent, FuncParams},
+    Comment, Func, IdentifierExt, Var,
+};
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct Class<'s> {
@@ -8,7 +11,7 @@ pub struct Class<'s> {
     pub name: &'s str,
     pub extends: Option<IdentifierExt<'s>>,
     pub implements: Vec<IdentifierExt<'s>>,
-    pub body: &'s str,
+    pub body: Vec<ClassMember<'s>>,
 }
 
 /// The possible combinations are:
@@ -30,4 +33,27 @@ pub enum ClassModifier {
     Final,
     Interface,
     Sealed,
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub enum ClassMember<'s> {
+    Verbatim(&'s str),
+    Comment(Comment<'s>),
+    Constructor(Constructor<'s>),
+    Var(Var<'s>),
+    Func(Func<'s>),
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub struct Constructor<'s> {
+    pub modifier: Option<ConstructorModifier>,
+    pub name: &'s str,
+    pub params: FuncParams<'s>,
+    pub body: Option<FuncBodyContent<'s>>,
+}
+
+#[derive(PartialEq, Eq, Copy, Clone, Debug)]
+pub enum ConstructorModifier {
+    Const,
+    Factory,
 }

@@ -20,7 +20,7 @@ pub enum FuncModifier {
     Static,
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Default, Debug)]
 pub struct FuncParams<'s> {
     pub positional: Vec<FuncParam<'s>>,
     pub named: Vec<FuncParam<'s>>,
@@ -45,11 +45,10 @@ pub enum FuncParamModifier {
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct FuncBody<'s> {
-    pub modifiers: FuncBodyModifierSet,
+    pub modifier: Option<FuncBodyModifier>,
     pub content: FuncBodyContent<'s>,
 }
 
-#[with_tiny_set]
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
 #[repr(usize)]
 pub enum FuncBodyModifier {
@@ -61,6 +60,6 @@ pub enum FuncBodyModifier {
 #[derive(PartialEq, Eq, Debug)]
 pub enum FuncBodyContent<'s> {
     Block(&'s str),
-    /// Not allowed in generator functions.
+    /// Not allowed in generator functions and constructors, except factory constructors.
     Expr(&'s str),
 }

@@ -1,41 +1,48 @@
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    combinator::{cut, opt, value},
+    combinator::{cut, opt, recognize, value},
     error::{context, ContextError, ParseError},
-    multi::{fold_many0, separated_list1},
+    multi::{fold_many0, many0, separated_list1},
     sequence::{pair, preceded, terminated, tuple},
+    Parser,
 };
 
 use crate::dart::{
-    class::{ClassModifier, ClassModifierSet},
+    class::{ClassMember, ClassModifier, ClassModifierSet, Constructor, ConstructorModifier},
     Class, IdentifierExt,
 };
 
-use super::{common::*, scope::block, PResult};
+use super::{
+    comment::comment,
+    common::*,
+    expr::expr,
+    func::{func, func_body_content, func_params},
+    var::var,
+    PResult,
+};
 
 pub fn class<'s, E>(s: &'s str) -> PResult<Class, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
-    context("class", |s| {
-        let (s, modifiers) = terminated(class_modifier_set, spbr)(s)?;
-        let (s, name) = terminated(identifier, opt(spbr))(s)?;
-        let (s, extends) = opt(terminated(extends_clause, spbr))(s)?;
-        let (s, implements) = opt(terminated(implements_clause, spbr))(s)?;
-        let (s, body) = block(s)?;
-
-        Ok((
-            s,
-            Class {
-                modifiers,
-                name,
-                extends,
-                implements: implements.unwrap_or(Vec::default()),
-                body,
-            },
+    context(
+        "class",
+        tuple((
+            terminated(class_modifier_set, spbr),
+            terminated(identifier, opt(spbr)),
+            opt(terminated(extends_clause, opt(spbr))),
+            opt(terminated(implements_clause, opt(spbr))),
+            class_body,
         ))
-    })(s)
+        .map(|(modifiers, name, extends, implements, body)| Class {
+            modifiers,
+            name,
+            extends,
+            implements: implements.unwrap_or(Vec::default()),
+            body,
+        }),
+    )(s)
 }
 
 fn class_modifier_set<'s, E: ParseError<&'s str>>(s: &'s str) -> PResult<ClassModifierSet, E> {
@@ -88,9 +95,83 @@ where
     )(s)
 }
 
+fn class_body<'s, E>(s: &'s str) -> PResult<Vec<ClassMember>, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
+    context(
+        "class_body",
+        preceded(tag("{"), terminated(many0(class_member), tag("}"))),
+    )(s)
+}
+
+fn class_member<'s, E>(s: &'s str) -> PResult<ClassMember, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
+    alt((
+        spbr.map(ClassMember::Verbatim),
+        comment.map(ClassMember::Comment),
+        constructor.map(ClassMember::Constructor),
+        var.map(ClassMember::Var),
+        func.map(ClassMember::Func),
+    ))(s)
+}
+
+fn constructor<'s, E>(s: &'s str) -> PResult<Constructor, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
+    context(
+        "constructor",
+        tuple((
+            opt(terminated(constructor_modifier, spbr)),
+            terminated(identifier, opt(spbr)),
+            terminated(func_params, opt(spbr)),
+            opt(terminated(constructor_initializer_list, opt(spbr))),
+            alt((func_body_content.map(Some), tag(";").map(|_| None))),
+        ))
+        .map(|(modifier, name, params, _, body)| Constructor {
+            modifier,
+            name,
+            params,
+            body,
+        }),
+    )(s)
+}
+
+fn constructor_modifier<'s, E>(s: &'s str) -> PResult<ConstructorModifier, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
+    alt((
+        value(ConstructorModifier::Const, tag("const")),
+        value(ConstructorModifier::Factory, tag("factory")),
+    ))(s)
+}
+
+fn constructor_initializer_list<'s, E>(s: &'s str) -> PResult<&str, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
+    preceded(
+        pair(tag(":"), opt(spbr)),
+        recognize(separated_list1(
+            tuple((opt(spbr), tag(","), opt(spbr))),
+            expr,
+        )),
+    )(s)
+}
+
 #[cfg(test)]
 mod tests {
     use nom::error::VerboseError;
+
+    use crate::dart::{
+        func::{FuncBodyContent, FuncParam, FuncParamModifierSet, FuncParams},
+        var::VarModifierSet,
+        Var,
+    };
 
     use super::*;
 
@@ -128,7 +209,7 @@ mod tests {
                     name: "Record",
                     extends: Some(IdentifierExt::name("Base")),
                     implements: vec![IdentifierExt::name("A"), IdentifierExt::name("B")],
-                    body: "{}"
+                    body: Vec::new(),
                 }
             ))
         );
@@ -145,14 +226,23 @@ mod tests {
                     name: "Record",
                     extends: None,
                     implements: Vec::new(),
-                    body: "{\n  String id;\n}"
+                    body: vec![
+                        ClassMember::Verbatim("\n  "),
+                        ClassMember::Var(Var {
+                            modifiers: VarModifierSet::default(),
+                            var_type: Some(IdentifierExt::name("String")),
+                            name: "id",
+                            initializer: None,
+                        }),
+                        ClassMember::Verbatim("\n"),
+                    ],
                 }
             ))
         );
     }
 
     #[test]
-    fn class_generic_test() {
+    fn class_generic_base_test() {
         assert_eq!(
             class::<VerboseError<_>>("class Record extends Base<T> implements A<Future<void>> {}"),
             Ok((
@@ -174,7 +264,82 @@ mod tests {
                         }],
                         is_nullable: false,
                     }],
-                    body: "{}"
+                    body: Vec::new(),
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn constructor_basic_test() {
+        assert_eq!(
+            constructor::<VerboseError<_>>("Record(); "),
+            Ok((
+                " ",
+                Constructor {
+                    modifier: None,
+                    name: "Record",
+                    params: FuncParams::default(),
+                    body: None,
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn constructor_param_this_test() {
+        assert_eq!(
+            constructor::<VerboseError<_>>("Record(this.id); "),
+            Ok((
+                " ",
+                Constructor {
+                    modifier: None,
+                    name: "Record",
+                    params: FuncParams {
+                        positional: vec![FuncParam {
+                            is_required: true,
+                            modifiers: FuncParamModifierSet::default(),
+                            param_type: None,
+                            name: "this.id",
+                            initializer: None,
+                        }],
+                        named: Vec::new(),
+                    },
+                    body: None,
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn constructor_initializer_list_test() {
+        assert_eq!(
+            constructor::<VerboseError<_>>(
+                "const Record(): assert(() { print('+1'); }()), super(null); "
+            ),
+            Ok((
+                " ",
+                Constructor {
+                    modifier: Some(ConstructorModifier::Const),
+                    name: "Record",
+                    params: FuncParams::default(),
+                    body: None,
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn constructor_factory_test() {
+        assert_eq!(
+            constructor::<VerboseError<_>>("factory Record.default() { print('+1'); } "),
+            Ok((
+                " ",
+                Constructor {
+                    modifier: Some(ConstructorModifier::Factory),
+                    name: "Record.default",
+                    params: FuncParams::default(),
+                    body: Some(FuncBodyContent::Block("{ print('+1'); }")),
                 }
             ))
         );
