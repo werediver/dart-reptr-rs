@@ -13,10 +13,10 @@ use std::str;
 
 use nom::{
     branch::alt,
-    combinator::eof,
+    combinator::{eof, opt},
     error::{ContextError, ParseError},
     multi::many0,
-    sequence::terminated,
+    sequence::{preceded, terminated},
     Parser,
 };
 
@@ -32,17 +32,22 @@ pub fn parse<'s, E>(s: &'s str) -> PResult<Vec<Dart>, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
-    terminated(
-        many0(alt((
-            spbr.map(Dart::Verbatim),
-            comment.map(Dart::Comment),
-            directive.map(Dart::Directive),
-            var.map(Dart::Var),
-            func.map(Dart::Func),
-            class.map(Dart::Class),
-            enum_ty.map(Dart::Enum),
-        ))),
-        eof,
+    preceded(
+        opt(spbr),
+        terminated(
+            many0(terminated(
+                alt((
+                    comment.map(Dart::Comment),
+                    directive.map(Dart::Directive),
+                    var.map(Dart::Var),
+                    func.map(Dart::Func),
+                    class.map(Dart::Class),
+                    enum_ty.map(Dart::Enum),
+                )),
+                opt(spbr),
+            )),
+            eof,
+        ),
     )(s)
 }
 
@@ -71,24 +76,19 @@ mod tests {
                 "",
                 vec![
                     Dart::Directive(Directive::Import(Import::target("dart:math"))),
-                    Dart::Verbatim("\n"),
                     Dart::Directive(Directive::Import(Import::target_as(
                         "package:path/path.dart",
                         "p"
                     ))),
-                    Dart::Verbatim("\n\n"),
                     Dart::Directive(Directive::Part("types.g.dart")),
-                    Dart::Verbatim("\n\n"),
                     Dart::Comment(Comment::SingleLine("// A comment\n")),
                     Dart::Comment(Comment::MultiLine("/*\nAnother comment\n*/")),
-                    Dart::Verbatim("\n"),
                     Dart::Var(Var {
                         modifiers: VarModifierSet::from_iter([VarModifier::Const]),
                         var_type: None,
                         name: "category",
                         initializer: Some("\"mixed bag\""),
                     }),
-                    Dart::Verbatim("\n"),
                     Dart::Var(Var {
                         modifiers: VarModifierSet::from_iter([
                             VarModifier::Late,
@@ -98,7 +98,6 @@ mod tests {
                         name: "crash_count",
                         initializer: None,
                     }),
-                    Dart::Verbatim("\n\n"),
                     Dart::Class(Class {
                         modifiers: ClassModifierSet::from_iter([ClassModifier::Class]),
                         name: "Base",
@@ -131,7 +130,6 @@ mod tests {
                             ClassMember::Verbatim("\n"),
                         ],
                     }),
-                    Dart::Verbatim("\n\n"),
                     Dart::Class(Class {
                         modifiers: ClassModifierSet::from_iter([ClassModifier::Class]),
                         name: "Record",
@@ -166,7 +164,6 @@ mod tests {
                             ClassMember::Verbatim("\n"),
                         ],
                     }),
-                    Dart::Verbatim("\n\n"),
                     Dart::Func(Func {
                         modifiers: FuncModifierSet::default(),
                         return_type: IdentifierExt {
@@ -206,7 +203,6 @@ mod tests {
                             content: FuncBodyContent::Block("{\n    print(\"Hello?\");\n}")
                         })
                     }),
-                    Dart::Verbatim("\n"),
                 ]
             ))
         );

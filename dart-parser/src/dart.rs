@@ -14,7 +14,6 @@ pub use var::Var;
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum Dart<'s> {
-    Verbatim(&'s str),
     Comment(Comment<'s>),
     Directive(Directive<'s>),
     Var(Var<'s>),
