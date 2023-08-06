@@ -9,10 +9,7 @@ use nom::{
 use crate::dart::EnumTy;
 
 use super::{
-    class::implements_clause,
-    common::{identifier, spbr},
-    scope::block,
-    PResult,
+    class::implements_clause, common::spbr, identifier::identifier, scope::block, PResult,
 };
 
 pub fn enum_ty<'s, E>(s: &'s str) -> PResult<EnumTy, E>

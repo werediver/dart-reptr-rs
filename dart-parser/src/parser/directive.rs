@@ -10,11 +10,7 @@ use nom::{
 
 use crate::dart::directive::{Directive, Import, PartOf};
 
-use super::{
-    common::{identifier, spbr},
-    string::string_simple,
-    PResult,
-};
+use super::{common::spbr, identifier::identifier, string::string_simple, PResult};
 
 pub fn directive<'s, E>(s: &'s str) -> PResult<Directive, E>
 where

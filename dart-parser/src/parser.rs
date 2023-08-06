@@ -5,6 +5,7 @@ mod directive;
 mod enum_ty;
 mod expr;
 mod func;
+mod identifier;
 mod scope;
 mod string;
 mod var;
