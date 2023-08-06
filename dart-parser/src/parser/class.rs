@@ -18,6 +18,7 @@ use super::{
     common::*,
     expr::expr,
     func::{func, func_body_content, func_params},
+    identifier::{identifier, identifier_ext},
     var::var,
     PResult,
 };
