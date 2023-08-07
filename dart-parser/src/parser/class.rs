@@ -102,7 +102,13 @@ where
 {
     context(
         "class_body",
-        preceded(tag("{"), terminated(many0(class_member), tag("}"))),
+        preceded(
+            pair(tag("{"), opt(spbr)),
+            cut(terminated(
+                many0(terminated(class_member, opt(spbr))),
+                tag("}"),
+            )),
+        ),
     )(s)
 }
 
