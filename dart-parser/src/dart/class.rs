@@ -2,13 +2,14 @@ use tiny_set::with_tiny_set;
 
 use super::{
     func::{FuncBodyContent, FuncParams},
-    Comment, Func, IdentifierExt, Var,
+    Annotation, Comment, Func, IdentifierExt, TypeParam, Var,
 };
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct Class<'s> {
     pub modifiers: ClassModifierSet,
     pub name: &'s str,
+    pub type_params: Vec<TypeParam<'s>>,
     pub extends: Option<IdentifierExt<'s>>,
     pub implements: Vec<IdentifierExt<'s>>,
     pub body: Vec<ClassMember<'s>>,
@@ -38,6 +39,7 @@ pub enum ClassModifier {
 #[derive(PartialEq, Eq, Debug)]
 pub enum ClassMember<'s> {
     Comment(Comment<'s>),
+    Annotation(Annotation<'s>),
     Constructor(Constructor<'s>),
     Var(Var<'s>),
     Func(Func<'s>),

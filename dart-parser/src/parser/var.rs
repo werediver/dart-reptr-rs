@@ -85,7 +85,7 @@ fn var_modifier<'s, E: ParseError<&'s str>>(s: &'s str) -> PResult<VarModifier, 
 mod tests {
     use nom::error::VerboseError;
 
-    use crate::dart::IdentifierExt;
+    use crate::dart::{Expr, IdentifierExt};
 
     use super::*;
 
@@ -112,7 +112,7 @@ mod tests {
     #[test]
     fn var_init() {
         assert_eq!(
-            var::<VerboseError<_>>("static const type = \"type\"; "),
+            var::<VerboseError<_>>("static const type = 'type'; "),
             Ok((
                 " ",
                 Var {
@@ -121,7 +121,27 @@ mod tests {
                     ),
                     var_type: None,
                     name: "type",
-                    initializer: Some("\"type\""),
+                    initializer: Some(Expr::String("type")),
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn var_list_init() {
+        assert_eq!(
+            var::<VerboseError<_>>("List<int> xs = []; "),
+            Ok((
+                " ",
+                Var {
+                    modifiers: VarModifierSet::default(),
+                    var_type: Some(IdentifierExt {
+                        name: "List",
+                        type_args: vec![IdentifierExt::name("int")],
+                        is_nullable: false
+                    }),
+                    name: "xs",
+                    initializer: Some(Expr::Verbatim("[]")),
                 }
             ))
         );
@@ -137,7 +157,7 @@ mod tests {
                     modifiers: VarModifierSet::default(),
                     var_type: None,
                     name: "i",
-                    initializer: Some("0"),
+                    initializer: Some(Expr::Verbatim("0")),
                 }
             ))
         );
@@ -153,7 +173,7 @@ mod tests {
                     modifiers: VarModifierSet::default(),
                     var_type: Some(IdentifierExt::name("double")),
                     name: "x",
-                    initializer: Some("0"),
+                    initializer: Some(Expr::Verbatim("0")),
                 }
             ))
         );

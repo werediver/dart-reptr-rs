@@ -1,3 +1,4 @@
+mod annotation;
 mod class;
 mod comment;
 mod common;
@@ -5,9 +6,11 @@ mod directive;
 mod enum_ty;
 mod expr;
 mod func;
+mod func_call;
 mod identifier;
 mod scope;
 mod string;
+mod type_params;
 mod var;
 
 use std::str;
@@ -24,7 +27,8 @@ use nom::{
 use crate::{dart::*, parser::class::class};
 
 use self::{
-    comment::comment, common::spbr, directive::directive, enum_ty::enum_ty, func::func, var::var,
+    annotation::annotation, comment::comment, common::spbr, directive::directive, enum_ty::enum_ty,
+    func::func, var::var,
 };
 
 type PResult<'s, T, E> = Result<(&'s str, T), nom::Err<E>>;
@@ -40,6 +44,7 @@ where
                 alt((
                     comment.map(Dart::Comment),
                     directive.map(Dart::Directive),
+                    annotation.map(Dart::Annotation),
                     var.map(Dart::Var),
                     func.map(Dart::Func),
                     class.map(Dart::Class),
@@ -88,7 +93,7 @@ mod tests {
                         modifiers: VarModifierSet::from_iter([VarModifier::Const]),
                         var_type: None,
                         name: "category",
-                        initializer: Some("\"mixed bag\""),
+                        initializer: Some(Expr::String("mixed bag")),
                     }),
                     Dart::Var(Var {
                         modifiers: VarModifierSet::from_iter([
@@ -102,6 +107,7 @@ mod tests {
                     Dart::Class(Class {
                         modifiers: ClassModifierSet::from_iter([ClassModifier::Class]),
                         name: "Base",
+                        type_params: Vec::new(),
                         extends: None,
                         implements: Vec::default(),
                         body: vec![
@@ -128,9 +134,14 @@ mod tests {
                             }),
                         ],
                     }),
+                    Dart::Annotation(Annotation::Ident("immutable")),
                     Dart::Class(Class {
                         modifiers: ClassModifierSet::from_iter([ClassModifier::Class]),
                         name: "Record",
+                        type_params: vec![TypeParam {
+                            name: "T",
+                            extends: None
+                        }],
                         extends: Some(IdentifierExt::name("Base")),
                         implements: vec![
                             IdentifierExt {
@@ -151,14 +162,12 @@ mod tests {
                             },
                             IdentifierExt::name("C")
                         ],
-                        body: vec![
-                            ClassMember::Var(Var {
-                                modifiers: VarModifierSet::default(),
-                                var_type: Some(IdentifierExt::name("String")),
-                                name: "name",
-                                initializer: None,
-                            }),
-                        ],
+                        body: vec![ClassMember::Var(Var {
+                            modifiers: VarModifierSet::default(),
+                            var_type: Some(IdentifierExt::name("String")),
+                            name: "name",
+                            initializer: None,
+                        }),],
                     }),
                     Dart::Func(Func {
                         modifiers: FuncModifierSet::default(),
@@ -175,6 +184,7 @@ mod tests {
                             is_nullable: false,
                         },
                         name: "_recordToJson",
+                        type_params: Vec::new(),
                         params: FuncParams {
                             positional: vec![
                                 FuncParam {
@@ -189,7 +199,7 @@ mod tests {
                                     modifiers: FuncParamModifierSet::default(),
                                     param_type: Some(IdentifierExt::name("bool")),
                                     name: "quack",
-                                    initializer: Some("false")
+                                    initializer: Some(Expr::Ident("false"))
                                 }
                             ],
                             named: Vec::new(),
@@ -223,7 +233,8 @@ class Base {
   final String id;
 }
 
-class Record extends Base implements A<Future<void>, B?>, C {
+@immutable
+class Record<T> extends Base implements A<Future<void>, B?>, C {
   String name;
 }
 

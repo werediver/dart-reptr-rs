@@ -2,7 +2,7 @@ use nom::{
     branch::alt,
     bytes::complete::{is_a, tag},
     error::ParseError,
-    multi::fold_many0,
+    multi::{fold_many0, fold_many1},
     InputLength, Parser,
 };
 
@@ -15,6 +15,15 @@ where
     E: ParseError<I>,
 {
     fold_many0(p, || {}, |_, _| {})
+}
+
+pub fn skip_many1<P, I, O, E>(p: P) -> impl Parser<I, (), E>
+where
+    P: Parser<I, O, E>,
+    I: Clone + InputLength,
+    E: ParseError<I>,
+{
+    fold_many1(p, || {}, |_, _| {})
 }
 
 /// Parse one or more whitespace characters, including line breaks.

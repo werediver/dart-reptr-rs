@@ -14,11 +14,13 @@ use crate::dart::{
 };
 
 use super::{
+    annotation::annotation,
     comment::comment,
     common::*,
     expr::expr,
     func::{func, func_body_content, func_params},
     identifier::{identifier, identifier_ext},
+    type_params::type_params,
     var::var,
     PResult,
 };
@@ -32,17 +34,21 @@ where
         tuple((
             terminated(class_modifier_set, spbr),
             terminated(identifier, opt(spbr)),
+            opt(terminated(type_params, opt(spbr))),
             opt(terminated(extends_clause, opt(spbr))),
             opt(terminated(implements_clause, opt(spbr))),
             class_body,
         ))
-        .map(|(modifiers, name, extends, implements, body)| Class {
-            modifiers,
-            name,
-            extends,
-            implements: implements.unwrap_or(Vec::default()),
-            body,
-        }),
+        .map(
+            |(modifiers, name, type_params, extends, implements, body)| Class {
+                modifiers,
+                name,
+                type_params: type_params.unwrap_or(Vec::new()),
+                extends,
+                implements: implements.unwrap_or(Vec::default()),
+                body,
+            },
+        ),
     )(s)
 }
 
@@ -118,6 +124,7 @@ where
 {
     alt((
         comment.map(ClassMember::Comment),
+        annotation.map(ClassMember::Annotation),
         constructor.map(ClassMember::Constructor),
         var.map(ClassMember::Var),
         func.map(ClassMember::Func),
@@ -176,7 +183,7 @@ mod tests {
     use crate::dart::{
         func::{FuncBodyContent, FuncParam, FuncParamModifierSet, FuncParams},
         var::VarModifierSet,
-        Var,
+        TypeParam, Var,
     };
 
     use super::*;
@@ -207,12 +214,24 @@ mod tests {
     #[test]
     fn class_test() {
         assert_eq!(
-            class::<VerboseError<_>>("class Record extends Base implements A, B {}"),
+            class::<VerboseError<_>>(
+                "class Record<T, U extends Object> extends Base implements A, B {} "
+            ),
             Ok((
-                "",
+                " ",
                 Class {
                     modifiers: ClassModifierSet::from_iter([ClassModifier::Class]),
                     name: "Record",
+                    type_params: vec![
+                        TypeParam {
+                            name: "T",
+                            extends: None
+                        },
+                        TypeParam {
+                            name: "U",
+                            extends: Some(IdentifierExt::name("Object"))
+                        },
+                    ],
                     extends: Some(IdentifierExt::name("Base")),
                     implements: vec![IdentifierExt::name("A"), IdentifierExt::name("B")],
                     body: Vec::new(),
@@ -224,15 +243,17 @@ mod tests {
     #[test]
     fn class_property_test() {
         assert_eq!(
-            class::<VerboseError<_>>("class Record {\n  String id;\n}"),
+            class::<VerboseError<_>>("class Record {\n  @override\n  String id;\n}"),
             Ok((
                 "",
                 Class {
                     modifiers: ClassModifierSet::from_iter([ClassModifier::Class]),
                     name: "Record",
+                    type_params: Vec::new(),
                     extends: None,
                     implements: Vec::new(),
                     body: vec![
+                        ClassMember::Annotation(crate::dart::Annotation::Ident("override")),
                         ClassMember::Var(Var {
                             modifiers: VarModifierSet::default(),
                             var_type: Some(IdentifierExt::name("String")),
@@ -254,6 +275,7 @@ mod tests {
                 Class {
                     modifiers: ClassModifierSet::from_iter([ClassModifier::Class]),
                     name: "Record",
+                    type_params: Vec::new(),
                     extends: Some(IdentifierExt {
                         name: "Base",
                         type_args: vec![IdentifierExt::name("T")],
