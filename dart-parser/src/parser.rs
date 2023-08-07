@@ -105,7 +105,6 @@ mod tests {
                         extends: None,
                         implements: Vec::default(),
                         body: vec![
-                            ClassMember::Verbatim("\n  "),
                             ClassMember::Constructor(Constructor {
                                 modifier: None,
                                 name: "Base",
@@ -121,14 +120,12 @@ mod tests {
                                 },
                                 body: None,
                             }),
-                            ClassMember::Verbatim("\n\n  "),
                             ClassMember::Var(Var {
                                 modifiers: VarModifierSet::from_iter([VarModifier::Final]),
                                 var_type: Some(IdentifierExt::name("String")),
                                 name: "id",
                                 initializer: None,
                             }),
-                            ClassMember::Verbatim("\n"),
                         ],
                     }),
                     Dart::Class(Class {
@@ -155,14 +152,12 @@ mod tests {
                             IdentifierExt::name("C")
                         ],
                         body: vec![
-                            ClassMember::Verbatim("\n  "),
                             ClassMember::Var(Var {
                                 modifiers: VarModifierSet::default(),
                                 var_type: Some(IdentifierExt::name("String")),
                                 name: "name",
                                 initializer: None,
                             }),
-                            ClassMember::Verbatim("\n"),
                         ],
                     }),
                     Dart::Func(Func {

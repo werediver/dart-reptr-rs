@@ -37,7 +37,6 @@ pub enum ClassModifier {
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum ClassMember<'s> {
-    Verbatim(&'s str),
     Comment(Comment<'s>),
     Constructor(Constructor<'s>),
     Var(Var<'s>),
