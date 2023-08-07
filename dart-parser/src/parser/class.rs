@@ -117,7 +117,6 @@ where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
     alt((
-        spbr.map(ClassMember::Verbatim),
         comment.map(ClassMember::Comment),
         constructor.map(ClassMember::Constructor),
         var.map(ClassMember::Var),
@@ -234,14 +233,12 @@ mod tests {
                     extends: None,
                     implements: Vec::new(),
                     body: vec![
-                        ClassMember::Verbatim("\n  "),
                         ClassMember::Var(Var {
                             modifiers: VarModifierSet::default(),
                             var_type: Some(IdentifierExt::name("String")),
                             name: "id",
                             initializer: None,
                         }),
-                        ClassMember::Verbatim("\n"),
                     ],
                 }
             ))
