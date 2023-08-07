@@ -49,7 +49,7 @@ where
     })(s)
 }
 
-/// Parse an identifier with type arguments and the nullability indicator (e.g. `Future<int>?`).
+/// Parse an identifier with type arguments and the nullability indicator (e.g. `x`, `Future<int>?`).
 pub fn identifier_ext<'s, E>(s: &'s str) -> PResult<IdentifierExt, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
@@ -58,13 +58,7 @@ where
         "identifier_ext",
         tuple((
             identifier,
-            opt(preceded(
-                tuple((opt(spbr), tag("<"), opt(spbr))),
-                cut(terminated(
-                    separated_list1(tuple((opt(spbr), tag(","), opt(spbr))), identifier_ext),
-                    pair(opt(spbr), tag(">")),
-                )),
-            )),
+            opt(preceded(opt(spbr), type_args)),
             opt(preceded(opt(spbr), tag("?"))),
         ))
         .map(|(name, args, nullability_ind)| IdentifierExt {
@@ -74,6 +68,22 @@ where
         }),
     )
     .parse(s)
+}
+
+fn type_args<'s, E>(s: &'s str) -> PResult<Vec<IdentifierExt>, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
+    context(
+        "type_args",
+        preceded(
+            pair(tag("<"), opt(spbr)),
+            cut(terminated(
+                separated_list1(tuple((opt(spbr), tag(","), opt(spbr))), identifier_ext),
+                pair(opt(spbr), tag(">")),
+            )),
+        ),
+    )(s)
 }
 
 #[cfg(test)]

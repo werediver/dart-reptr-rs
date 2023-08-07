@@ -3,11 +3,10 @@ use nom::{
     bytes::complete::{is_not, tag},
     combinator::{cut, recognize},
     error::{context, ContextError, ParseError},
-    multi::many0_count,
     sequence::{preceded, terminated},
 };
 
-use super::PResult;
+use super::{common::skip_many0, PResult};
 
 /// Parse a single- or double-quoted string literal without escape-sequences.
 ///
@@ -25,14 +24,14 @@ where
     let dq = preceded(
         tag("\""),
         cut(terminated(
-            recognize(many0_count(is_not("\\\"\r\n"))),
+            recognize(skip_many0(is_not("\\\"\r\n"))),
             tag("\""),
         )),
     );
     let sq = preceded(
         tag("'"),
         cut(terminated(
-            recognize(many0_count(is_not("\\'\r\n"))),
+            recognize(skip_many0(is_not("\\'\r\n"))),
             tag("'"),
         )),
     );

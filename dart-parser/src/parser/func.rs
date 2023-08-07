@@ -1,9 +1,9 @@
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    combinator::{cut, fail, opt, success, value},
+    combinator::{cut, opt, success, value},
     error::{context, ContextError, ParseError},
-    multi::{fold_many0, separated_list0, separated_list1},
+    multi::{fold_many0, separated_list0},
     sequence::{pair, preceded, terminated, tuple},
     Parser,
 };
@@ -21,6 +21,7 @@ use super::{
     expr::expr,
     identifier::{identifier, identifier_ext},
     scope::block,
+    type_params::type_params,
     PResult,
 };
 
@@ -44,11 +45,11 @@ where
             alt((func_body.map(Some), tag(";").map(|_| None))),
         ))
         .map(
-            |(modifiers, return_type, name, _type_params, params, body)| Func {
+            |(modifiers, return_type, name, type_params, params, body)| Func {
                 modifiers,
                 return_type,
                 name,
-                // type_params,
+                type_params: type_params.unwrap_or(Vec::new()),
                 params,
                 body,
             },
@@ -76,26 +77,6 @@ fn func_modifier<'s, E: ParseError<&'s str>>(s: &'s str) -> PResult<FuncModifier
     ))(s)
 }
 
-fn type_params<'s, E>(s: &'s str) -> PResult<Vec<()>, E>
-where
-    E: ParseError<&'s str> + ContextError<&'s str>,
-{
-    context(
-        "type_params",
-        preceded(
-            pair(tag("<"), opt(spbr)),
-            cut(terminated(
-                separated_list1(tuple((opt(spbr), tag(","), opt(spbr))), type_param),
-                pair(opt(spbr), tag(">")),
-            )),
-        ),
-    )(s)
-}
-
-fn type_param<'s, E: ParseError<&'s str>>(s: &'s str) -> PResult<(), E> {
-    fail(s)
-}
-
 pub fn func_params<'s, E>(s: &'s str) -> PResult<FuncParams, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
@@ -109,7 +90,7 @@ where
                     terminated(func_params_pos, opt(spbr)),
                     opt(terminated(func_params_named, opt(spbr))),
                 ),
-                pair(opt(spbr), tag(")")),
+                tag(")"),
             )),
         )
         .map(|(positional, named)| FuncParams {
@@ -138,10 +119,10 @@ where
             pair(tag("["), opt(spbr)),
             cut(terminated(
                 separated_list0(
-                    tuple((opt(spbr), tag(","), opt(spbr))),
-                    func_param_pos(false),
+                    pair(tag(","), opt(spbr)),
+                    terminated(func_param_pos(false), opt(spbr)),
                 ),
-                tuple((opt(spbr), opt(pair(tag(","), opt(spbr))), tag("]"))),
+                tuple((opt(pair(tag(","), opt(spbr))), tag("]"))),
             )),
         )),
     )
@@ -206,7 +187,10 @@ where
         preceded(
             pair(tag("{"), opt(spbr)),
             cut(terminated(
-                separated_list0(tuple((opt(spbr), tag(","), opt(spbr))), func_param_named),
+                separated_list0(
+                    pair(tag(","), opt(spbr)),
+                    terminated(func_param_named, opt(spbr)),
+                ),
                 tuple((opt(pair(tag(","), opt(spbr))), tag("}"))),
             )),
         ),
@@ -319,20 +303,34 @@ fn func_body_modifier<'s, E: ParseError<&'s str>>(s: &'s str) -> PResult<FuncBod
 mod tests {
     use nom::error::VerboseError;
 
-    use crate::dart::IdentifierExt;
+    use crate::dart::{Expr, IdentifierExt, TypeParam};
 
     use super::*;
 
     #[test]
     fn func_block_test() {
         assert_eq!(
-            func::<VerboseError<_>>("void f() {}x"),
+            func::<VerboseError<_>>("void f<T extends Object?, U>() {}x"),
             Ok((
                 "x",
                 Func {
                     modifiers: FuncModifierSet::default(),
                     return_type: IdentifierExt::name("void"),
                     name: "f",
+                    type_params: vec![
+                        TypeParam {
+                            name: "T",
+                            extends: Some(IdentifierExt {
+                                name: "Object",
+                                type_args: Vec::new(),
+                                is_nullable: true
+                            }),
+                        },
+                        TypeParam {
+                            name: "U",
+                            extends: None
+                        }
+                    ],
                     params: FuncParams {
                         positional: Vec::new(),
                         named: Vec::new(),
@@ -358,6 +356,7 @@ mod tests {
                     modifiers: FuncModifierSet::default(),
                     return_type: IdentifierExt::name("void"),
                     name: "f",
+                    type_params: Vec::new(),
                     params: FuncParams {
                         positional: vec![
                             FuncParam {
@@ -387,7 +386,7 @@ mod tests {
                                 ]),
                                 param_type: Some(IdentifierExt::name("bool",)),
                                 name: "mystery_flag",
-                                initializer: Some("false"),
+                                initializer: Some(Expr::Ident("false")),
                             }
                         ],
                         named: Vec::new(),
@@ -415,6 +414,7 @@ mod tests {
                         is_nullable: false
                     },
                     name: "f",
+                    type_params: Vec::new(),
                     params: FuncParams {
                         positional: Vec::new(),
                         named: Vec::new(),
@@ -442,13 +442,14 @@ mod tests {
                         is_nullable: false,
                     },
                     name: "f",
+                    type_params: Vec::new(),
                     params: FuncParams {
                         positional: Vec::new(),
                         named: Vec::new(),
                     },
                     body: Some(FuncBody {
                         modifier: None,
-                        content: FuncBodyContent::Expr("const [\"abc\"]")
+                        content: FuncBodyContent::Expr(Expr::Verbatim("const [\"abc\"]"))
                     })
                 }
             ))
@@ -469,13 +470,14 @@ mod tests {
                         is_nullable: false,
                     },
                     name: "f",
+                    type_params: Vec::new(),
                     params: FuncParams {
                         positional: Vec::new(),
                         named: Vec::new(),
                     },
                     body: Some(FuncBody {
                         modifier: Some(FuncBodyModifier::Async),
-                        content: FuncBodyContent::Expr("\"abc\"")
+                        content: FuncBodyContent::Expr(Expr::String("abc"))
                     })
                 }
             ))

@@ -1,13 +1,13 @@
 use tiny_set::with_tiny_set;
 
-use super::IdentifierExt;
+use super::{Expr, IdentifierExt};
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct Var<'s> {
     pub modifiers: VarModifierSet,
     pub var_type: Option<IdentifierExt<'s>>,
     pub name: &'s str,
-    pub initializer: Option<&'s str>,
+    pub initializer: Option<Expr<'s>>,
 }
 
 #[with_tiny_set]

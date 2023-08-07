@@ -46,22 +46,20 @@ fn main() -> io::Result<()> {
 
     for entry in read_dir_ext {
         match entry {
-            Ok((_context, path)) => {
+            Ok((context, path)) => {
                 total_count += 1;
                 let result = try_load_parse(&path);
-                // let result = try_mmap_parse(&path);
+                // let result = _try_mmap_parse(&path);
 
                 let rel_path = path.strip_prefix(&cwd).unwrap();
 
                 match result {
                     Ok(_) => {
                         success_count += 1;
-                        // println!("[PARSED] [{context}] {rel_path:?}");
-                        println!("[PARSED] {rel_path:?}");
+                        println!("[PARSED] [{context}] {rel_path:?}");
                     }
                     Err(e) => {
-                        // println!("[PARSED] [{context}] {rel_path:?}");
-                        println!("[FAILED] {rel_path:?}\n{e}");
+                        println!("[FAILED] [{context}] {rel_path:?}\n{e}");
                     }
                 }
             }
