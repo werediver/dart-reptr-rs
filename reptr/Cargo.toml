@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 memmap2 = "0.7.1"
 dart-parser = { path = "../dart-parser" }
+clap = { version = "4.3.19", features = ["cargo", "derive"] }

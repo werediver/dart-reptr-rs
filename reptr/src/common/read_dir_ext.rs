@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::error_context::ErrorContext;
+use crate::common::ErrorContext;
 
 pub struct ReadDirExt<Context, F, G> {
     map_dir: F,

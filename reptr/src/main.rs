@@ -1,120 +1,20 @@
-use read_dir_ext::ReadDirExt;
-use std::{env, fs, io, path::Path};
+use clap::Parser;
+use commands::scan_dir;
+use std::io;
 
-mod error_context;
-mod read_dir_ext;
+mod commands;
+mod common;
+mod run_conf;
 
-use crate::error_context::ErrorContext;
+use crate::run_conf::{RunCmd, RunConf};
 
 fn main() -> io::Result<()> {
-    let cwd = env::current_dir()?;
+    let run_conf = RunConf::parse();
 
-    let read_dir_ext = ReadDirExt::new(
-        cwd.clone(),
-        |context, path| {
-            let dir_name = path.file_name().and_then(|s| s.to_str());
-            let context = if dir_name.is_some_and(|s| s.starts_with('.')) {
-                // Ignore dot-directories
-                None
-            } else if context.is_some() {
-                context.cloned()
-            } else if is_dart_pkg(path)? {
-                dir_name.map(|s| s.to_owned())
-            } else {
-                None
-            };
-
-            Ok(context)
-        },
-        |context, path| {
-            Ok(context.and_then(|context| {
-                if path
-                    .extension()
-                    .and_then(|s| s.to_str())
-                    .is_some_and(|ext| ext == "dart")
-                {
-                    Some((context.clone(), path))
-                } else {
-                    None
-                }
-            }))
-        },
-    );
-
-    let mut success_count = 0;
-    let mut total_count = 0;
-
-    for entry in read_dir_ext {
-        match entry {
-            Ok((context, path)) => {
-                total_count += 1;
-                let result = try_load_parse(&path);
-                // let result = _try_mmap_parse(&path);
-
-                let rel_path = path.strip_prefix(&cwd).unwrap();
-
-                match result {
-                    Ok(_) => {
-                        success_count += 1;
-                        println!("[PARSED] [{context}] {rel_path:?}");
-                    }
-                    Err(e) => {
-                        println!("[FAILED] [{context}] {rel_path:?}\n{e}");
-                    }
-                }
-            }
-            Err(err) => {
-                println!("{err}");
-            }
-        }
+    match run_conf.cmd.unwrap_or(RunCmd::Scan { dir: None }) {
+        RunCmd::Scan { dir } => scan_dir(dir)?,
+        RunCmd::Parse { file: _ } => todo!(),
     }
 
-    println!(
-        "\nSuccess / total: {success_count} / {total_count} ({:.4})",
-        success_count as f64 / total_count as f64
-    );
-
     Ok(())
-}
-
-fn try_load_parse(path: &Path) -> io::Result<()> {
-    let content =
-        fs::read_to_string(path).context_lazy(|| format!("Cannot read file at path {path:?}"))?;
-    let _items = dart_parser::parse(&content)
-        .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))
-        .context_lazy(|| format!("Cannot parse file at path {path:?}"))?;
-
-    Ok(())
-}
-
-fn _try_mmap_parse(path: &Path) -> io::Result<()> {
-    let f = fs::File::open(path).context_lazy(|| format!("Cannot open file at path {path:?}"))?;
-    let content = unsafe { memmap2::Mmap::map(&f)? };
-    let content =
-        std::str::from_utf8(&content).map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
-    // let content = unsafe { std::str::from_utf8_unchecked(&content) };
-    let _items = dart_parser::parse(content)
-        .map_err(|err| io::Error::new(io::ErrorKind::Other, err.to_string()))
-        .context_lazy(|| format!("Cannot parse file at path {path:?}"))?;
-
-    Ok(())
-}
-
-fn is_dart_pkg(path: &Path) -> io::Result<bool> {
-    let has_manifest = {
-        let manifest = path.join("pubspec.yaml");
-        manifest.try_exists()? && manifest.is_file()
-    };
-
-    fn has_lib(path: &Path) -> io::Result<bool> {
-        let lib = path.join("lib");
-        Ok(lib.try_exists()? && lib.is_dir())
-    }
-
-    fn has_bin(path: &Path) -> io::Result<bool> {
-        let bin = path.join("bin");
-        Ok(bin.try_exists()? && bin.is_dir())
-    }
-
-    Ok(has_manifest && (has_lib(path)? || has_bin(path)?))
 }
