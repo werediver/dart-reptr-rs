@@ -11,8 +11,13 @@ use crate::run_conf::{RunCmd, RunConf};
 fn main() -> io::Result<()> {
     let run_conf = RunConf::parse();
 
-    match run_conf.cmd.unwrap_or(RunCmd::Scan { dir: None }) {
-        RunCmd::Scan { dir } => scan_dir(dir)?,
+    let cmd = run_conf.cmd.unwrap_or(RunCmd::Scan {
+        dir: None,
+        quiet: false,
+    });
+
+    match cmd {
+        RunCmd::Scan { dir, quiet } => scan_dir(dir, scan_dir::Options { quiet })?,
         RunCmd::Parse { file: _ } => todo!(),
     }
 
