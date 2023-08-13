@@ -7,7 +7,9 @@ use nom::{
     Err,
 };
 
-pub fn parse(s: &str) -> Result<Vec<Dart>, String> {
+pub fn parse(s: &impl AsRef<str>) -> Result<Vec<Dart>, String> {
+    let s = s.as_ref();
+
     // Using the simple `nom::error::Error` may be more efficient,
     // but `nom::error::VerboseError` allows for much better error messages,
     // which is advantageous for development and debugging.

@@ -11,6 +11,12 @@ pub struct RunConf {
 
 #[derive(clap::Subcommand)]
 pub enum RunCmd {
-    Scan { dir: Option<PathBuf> },
-    Parse { file: PathBuf },
+    Scan {
+        dir: Option<PathBuf>,
+        #[arg(short, long)]
+        quiet: bool,
+    },
+    Parse {
+        file: PathBuf,
+    },
 }

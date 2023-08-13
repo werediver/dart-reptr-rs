@@ -1,8 +1,19 @@
 use std::{env, io};
 
-use crate::common::{is_dart_pkg, try_load_parse, ReadDirExt};
+use crate::common::{is_dart_pkg, try_load, ErrorContext, ReadDirExt};
 
-pub fn scan_dir(dir: Option<std::path::PathBuf>) -> io::Result<()> {
+#[derive(Default, Debug)]
+pub struct Options {
+    pub quiet: bool,
+}
+
+pub fn scan_dir(dir: Option<std::path::PathBuf>, options: Options) -> io::Result<()> {
+    let println = move |s: String| {
+        if !options.quiet {
+            println!("{s}");
+        }
+    };
+
     let dir = dir.map_or_else(env::current_dir, Ok)?;
 
     let read_dir_ext = ReadDirExt::new(
@@ -41,34 +52,40 @@ pub fn scan_dir(dir: Option<std::path::PathBuf>) -> io::Result<()> {
     let mut total_count = 0;
 
     for entry in read_dir_ext {
-        match entry {
-            Ok((context, path)) => {
+        let result = entry
+            .context_lazy(|| "Error scanning filesystem".to_owned())
+            .and_then(|(context, path)| {
+                let source = try_load(&path)?;
+
+                Ok((context, path, source))
+            });
+
+        match result {
+            Ok((context, path, source)) => {
                 total_count += 1;
-                let result = try_load_parse(&path);
-                // let result = _try_mmap_parse(&path);
 
                 let rel_path = path.strip_prefix(&dir).unwrap();
 
-                match result {
+                match dart_parser::parse(&source) {
                     Ok(_) => {
                         success_count += 1;
-                        println!("[PARSED] [{context}] {rel_path:?}");
+                        println(format!("[PARSED] [{context}] {rel_path:?}"));
                     }
                     Err(e) => {
-                        println!("[FAILED] [{context}] {rel_path:?}\n{e}");
+                        println(format!("[FAILED] [{context}] {rel_path:?}\n{e}"));
                     }
                 }
             }
             Err(err) => {
-                println!("{err}");
+                println(format!("{err}"));
             }
         }
     }
 
-    println!(
+    println(format!(
         "\nSuccess / total: {success_count} / {total_count} ({:.4})",
         success_count as f64 / total_count as f64
-    );
+    ));
 
     Ok(())
 }
