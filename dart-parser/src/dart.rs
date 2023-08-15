@@ -4,6 +4,7 @@ pub mod comment;
 pub mod directive;
 pub mod enum_ty;
 pub mod expr;
+pub mod extension;
 pub mod func_call;
 pub mod func_like;
 pub mod identifier_ext;
@@ -16,6 +17,7 @@ pub use comment::Comment;
 pub use directive::Directive;
 pub use enum_ty::EnumTy;
 pub use expr::Expr;
+pub use extension::Extension;
 pub use func_call::FuncCall;
 pub use func_like::FuncLike;
 pub use identifier_ext::IdentifierExt;
@@ -31,4 +33,5 @@ pub enum Dart<'s> {
     FuncLike(FuncLike<'s>),
     Class(Class<'s>),
     Enum(EnumTy<'s>),
+    Extension(Extension<'s>),
 }

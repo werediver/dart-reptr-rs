@@ -5,6 +5,7 @@ mod common;
 mod directive;
 mod enum_ty;
 mod expr;
+mod extension;
 mod func_call;
 mod func_like;
 mod identifier;
@@ -28,7 +29,7 @@ use crate::{dart::*, parser::class::class};
 
 use self::{
     annotation::annotation, comment::comment, common::spbr, directive::directive, enum_ty::enum_ty,
-    func_like::func_like, var::var,
+    extension::extension, func_like::func_like, var::var,
 };
 
 type PResult<'s, T, E> = Result<(&'s str, T), nom::Err<E>>;
@@ -49,6 +50,7 @@ where
                     func_like.map(Dart::FuncLike),
                     class.map(Dart::Class),
                     enum_ty.map(Dart::Enum),
+                    extension.map(Dart::Extension),
                 )),
                 opt(spbr),
             )),
