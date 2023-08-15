@@ -9,11 +9,11 @@ use nom::{
 };
 
 use crate::dart::{
-    func::{
-        FuncBody, FuncBodyContent, FuncBodyModifier, FuncModifier, FuncModifierSet, FuncParam,
-        FuncParamModifier, FuncParamModifierSet, FuncParams,
+    func_like::{
+        Func, FuncBody, FuncBodyContent, FuncBodyModifier, FuncModifier, FuncModifierSet,
+        FuncParam, FuncParamModifier, FuncParamModifierSet, FuncParams, Getter, Setter,
     },
-    Func,
+    FuncLike,
 };
 
 use super::{
@@ -25,7 +25,22 @@ use super::{
     PResult,
 };
 
-pub fn func<'s, E>(s: &'s str) -> PResult<Func, E>
+pub fn func_like<'s, E>(s: &'s str) -> PResult<FuncLike, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
+    context(
+        "func_like",
+        alt((
+            func.map(FuncLike::Func),
+            getter.map(FuncLike::Getter),
+            setter.map(FuncLike::Setter),
+        )),
+    )
+    .parse(s)
+}
+
+fn func<'s, E>(s: &'s str) -> PResult<Func, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
@@ -54,6 +69,63 @@ where
                 body,
             },
         ),
+    )
+    .parse(s)
+}
+
+fn getter<'s, E>(s: &'s str) -> PResult<Getter, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
+    context(
+        "getter",
+        tuple((
+            alt((
+                terminated(func_modifier_set, spbr),
+                success(FuncModifierSet::default()),
+            )),
+            // Return type
+            terminated(identifier_ext, opt(spbr)),
+            terminated(tag("get"), spbr),
+            // Getter name
+            terminated(identifier, opt(spbr)),
+            alt((func_body.map(Some), tag(";").map(|_| None))),
+        ))
+        .map(|(modifiers, return_type, _, name, body)| Getter {
+            modifiers,
+            return_type,
+            name,
+            body,
+        }),
+    )
+    .parse(s)
+}
+
+fn setter<'s, E>(s: &'s str) -> PResult<Setter, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
+    context(
+        "setter",
+        tuple((
+            alt((
+                terminated(func_modifier_set, spbr),
+                success(FuncModifierSet::default()),
+            )),
+            // The return type of the setter must be 'void' or absent
+            opt(terminated(tag("void"), opt(spbr))),
+            terminated(tag("set"), spbr),
+            // Setter name
+            terminated(identifier, opt(spbr)),
+            terminated(func_params, opt(spbr)),
+            alt((func_body.map(Some), tag(";").map(|_| None))),
+        ))
+        .map(|(modifiers, _, _, name, params, body)| Setter {
+            modifiers,
+            name,
+            params,
+            body,
+        }),
     )
     .parse(s)
 }
@@ -491,6 +563,34 @@ mod tests {
             Ok((
                 " ",
                 FuncModifierSet::from_iter([FuncModifier::External, FuncModifier::Static])
+            ))
+        );
+    }
+
+    #[test]
+    fn setter_test() {
+        assert_eq!(
+            setter::<VerboseError<_>>("set name(String value) {} "),
+            Ok((
+                " ",
+                Setter {
+                    modifiers: FuncModifierSet::default(),
+                    name: "name",
+                    params: FuncParams {
+                        positional: vec![FuncParam {
+                            name: "value",
+                            is_required: true,
+                            modifiers: FuncParamModifierSet::default(),
+                            param_type: Some(IdentifierExt::name("String")),
+                            initializer: None
+                        }],
+                        named: Vec::new()
+                    },
+                    body: Some(FuncBody {
+                        modifier: None,
+                        content: FuncBodyContent::Block("{}")
+                    })
+                }
             ))
         );
     }

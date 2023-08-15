@@ -3,11 +3,35 @@ use tiny_set::with_tiny_set;
 use super::{Expr, IdentifierExt, TypeParam};
 
 #[derive(PartialEq, Eq, Debug)]
+pub enum FuncLike<'s> {
+    Func(Func<'s>),
+    Getter(Getter<'s>),
+    Setter(Setter<'s>),
+}
+
+#[derive(PartialEq, Eq, Debug)]
 pub struct Func<'s> {
     pub modifiers: FuncModifierSet,
     pub return_type: IdentifierExt<'s>,
     pub name: &'s str,
     pub type_params: Vec<TypeParam<'s>>,
+    pub params: FuncParams<'s>,
+    pub body: Option<FuncBody<'s>>,
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub struct Getter<'s> {
+    pub modifiers: FuncModifierSet,
+    pub return_type: IdentifierExt<'s>,
+    pub name: &'s str,
+    pub body: Option<FuncBody<'s>>,
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub struct Setter<'s> {
+    pub modifiers: FuncModifierSet,
+    pub name: &'s str,
+    /// Setters must declare exactly one required positional parameter.
     pub params: FuncParams<'s>,
     pub body: Option<FuncBody<'s>>,
 }
