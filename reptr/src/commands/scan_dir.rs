@@ -7,14 +7,14 @@ pub struct Options {
     pub quiet: bool,
 }
 
-pub fn scan_dir(dir: Option<std::path::PathBuf>, options: Options) -> io::Result<()> {
+pub fn scan_dir(dir_path: Option<std::path::PathBuf>, options: Options) -> io::Result<()> {
     let println = move |s: String| {
         if !options.quiet {
             println!("{s}");
         }
     };
 
-    let dir = dir.map_or_else(env::current_dir, Ok)?;
+    let dir = dir_path.map_or_else(env::current_dir, Ok)?;
 
     let read_dir_ext = ReadDirExt::new(
         dir.clone(),
