@@ -2,11 +2,11 @@
 
 # Dart repointer
 
-Dart repointer (`reptr`) ~~puts the sharp part in your Dart~~ aims to facilitate _fast_ code generation for Dart. It consists of [the tool itself](reptr/) and a [Dart parser library](dart-parser). This is predominantly due to inefficiencies in the code generation "infrastructure", the `build_runner`. A faster implementation should allow 20–50x speed-up.
+Dart repointer (`reptr`) ~~puts the sharp part in your Dart~~ aims to facilitate _fast_ code generation for Dart. It consists of [the tool itself](reptr/) and a [Dart parser library](dart-parser).
 
 ## Motivation
 
-`build_runner`-based code generation for a single package can take a couple minutes. This translates to unreasonably long code generation time for a large Dart or Flutter project (e.g. over 45 minutes 🤯). We can do better.
+`build_runner`-based code generation for a single package can take a couple minutes. This translates to unreasonably long code generation time for large Dart and Flutter projects (e.g. over 45 minutes 🤯). This is predominantly due to inefficiencies in the code generation infrastructure, the `build_runner`. A faster implementation should allow 20–50x speed-up.
 
 ## Project structure
 
