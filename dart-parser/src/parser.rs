@@ -110,6 +110,7 @@ mod tests {
                         name: "Base",
                         type_params: Vec::new(),
                         extends: None,
+                        with: Vec::new(),
                         implements: Vec::default(),
                         body: vec![
                             ClassMember::Constructor(Constructor {
@@ -144,6 +145,7 @@ mod tests {
                             extends: None
                         }],
                         extends: Some(IdentifierExt::name("Base")),
+                        with: Vec::new(),
                         implements: vec![
                             IdentifierExt {
                                 name: "A",

@@ -36,16 +36,18 @@ where
             terminated(identifier, opt(spbr)),
             opt(terminated(type_params, opt(spbr))),
             opt(terminated(extends_clause, opt(spbr))),
+            opt(terminated(with_clause, opt(spbr))),
             opt(terminated(implements_clause, opt(spbr))),
             class_body,
         ))
         .map(
-            |(modifiers, name, type_params, extends, implements, body)| Class {
+            |(modifiers, name, type_params, extends, with, implements, body)| Class {
                 modifiers,
                 name,
                 type_params: type_params.unwrap_or(Vec::new()),
                 extends,
-                implements: implements.unwrap_or(Vec::default()),
+                with: with.unwrap_or(Vec::new()),
+                implements: implements.unwrap_or(Vec::new()),
                 body,
             },
         ),
@@ -94,6 +96,22 @@ where
         "implements_clause",
         preceded(
             pair(tag("implements"), spbr),
+            cut(separated_list1(
+                tuple((opt(spbr), tag(","), opt(spbr))),
+                identifier_ext,
+            )),
+        ),
+    )(s)
+}
+
+pub fn with_clause<'s, E>(s: &'s str) -> PResult<Vec<IdentifierExt>, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
+    context(
+        "with_clause",
+        preceded(
+            pair(tag("with"), spbr),
             cut(separated_list1(
                 tuple((opt(spbr), tag(","), opt(spbr))),
                 identifier_ext,
@@ -197,6 +215,24 @@ mod tests {
     }
 
     #[test]
+    fn with_test() {
+        assert_eq!(
+            with_clause::<VerboseError<_>>("with Salt, Pepper<Black> "),
+            Ok((
+                " ",
+                vec![
+                    IdentifierExt::name("Salt"),
+                    IdentifierExt {
+                        name: "Pepper",
+                        type_args: vec![IdentifierExt::name("Black")],
+                        is_nullable: false,
+                    }
+                ]
+            ))
+        );
+    }
+
+    #[test]
     fn implements_test() {
         assert_eq!(
             implements_clause::<VerboseError<_>>("implements A, B, C "),
@@ -233,6 +269,7 @@ mod tests {
                         },
                     ],
                     extends: Some(IdentifierExt::name("Base")),
+                    with: Vec::new(),
                     implements: vec![IdentifierExt::name("A"), IdentifierExt::name("B")],
                     body: Vec::new(),
                 }
@@ -251,6 +288,7 @@ mod tests {
                     name: "Record",
                     type_params: Vec::new(),
                     extends: None,
+                    with: Vec::new(),
                     implements: Vec::new(),
                     body: vec![
                         ClassMember::Annotation(crate::dart::Annotation::Ident("override")),
@@ -281,6 +319,7 @@ mod tests {
                         type_args: vec![IdentifierExt::name("T")],
                         is_nullable: false,
                     }),
+                    with: Vec::new(),
                     implements: vec![IdentifierExt {
                         name: "A",
                         type_args: vec![IdentifierExt {

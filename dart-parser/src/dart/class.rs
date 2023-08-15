@@ -12,6 +12,8 @@ pub struct Class<'s> {
     pub type_params: Vec<TypeParam<'s>>,
     /// The base class.
     pub extends: Option<IdentifierExt<'s>>,
+    /// Mix-ins.
+    pub with: Vec<IdentifierExt<'s>>,
     /// Interfaces.
     pub implements: Vec<IdentifierExt<'s>>,
     pub body: Vec<ClassMember<'s>>,
