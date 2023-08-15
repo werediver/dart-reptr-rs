@@ -16,10 +16,10 @@ where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
     // Based on [Keywords](https://dart.dev/language/keywords).
-    const RESERVED: [&str; 27] = [
+    const RESERVED: [&str; 26] = [
         "assert", "break", "case", "catch", "class", "const", "continue", "default", "do", "else",
         "enum", "extends", "finally", "for", "if", "in", "is", "new", "rethrow", "return",
-        "switch", "throw", "try", "var", "when", "while",
+        "switch", "throw", "try", "var", "while",
         "with",
         // It is desirable to recognize the following words as identifiers
         // "false", "null", "super", "this", "true", "void",
