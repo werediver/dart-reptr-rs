@@ -4,7 +4,7 @@ use nom::{
     branch::alt,
     bytes::complete::{is_not, tag},
     character::complete::char,
-    combinator::{cut, eof, not, recognize},
+    combinator::{cut, eof, not, recognize, success},
     error::{context, ContextError, ParseError},
     sequence::{preceded, terminated},
     Parser,
@@ -34,7 +34,10 @@ where
         "comment_single_line",
         recognize(preceded(
             tag("//"),
-            cut(terminated(is_not("\r\n"), alt((br, eof)))),
+            cut(terminated(
+                alt((is_not("\r\n"), success(""))),
+                alt((br, eof)),
+            )),
         )),
     )(s)
 }
@@ -84,6 +87,14 @@ mod tests {
     }
 
     #[test]
+    fn comment_single_line_empty_test() {
+        assert_eq!(
+            comment_single_line::<VerboseError<_>>("//\nx"),
+            Ok(("x", "//\n"))
+        );
+    }
+
+    #[test]
     fn comment_multi_line_test() {
         assert_eq!(
             comment_multi_line::<VerboseError<_>>("/* / */"),
@@ -96,6 +107,14 @@ mod tests {
         assert_eq!(
             comment_multi_line::<VerboseError<_>>("/* A comment\n /* another comment \n */\n*/"),
             Ok(("", "/* A comment\n /* another comment \n */\n*/"))
+        );
+    }
+
+    #[test]
+    fn comment_multi_line_empty_test() {
+        assert_eq!(
+            comment_multi_line::<VerboseError<_>>("/**/"),
+            Ok(("", "/**/"))
         );
     }
 }
