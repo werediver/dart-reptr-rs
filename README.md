@@ -6,7 +6,7 @@ Dart repointer (`reptr`) ~~puts the sharp part in your Dart~~ aims to facilitate
 
 ## Motivation
 
-`build_runner`-based code generation for a large Dart or Flutter project can take unreasonably long time (e.g. over 45 minutes 🤯).
+`build_runner`-based code generation for a single package can take a couple minutes. This translates to unreasonably long code generation time for a large Dart or Flutter project (e.g. over 45 minutes 🤯). We can do better.
 
 ## Project structure
 
