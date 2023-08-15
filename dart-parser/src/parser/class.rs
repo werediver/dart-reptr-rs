@@ -18,7 +18,7 @@ use super::{
     comment::comment,
     common::*,
     expr::expr,
-    func::{func, func_body_content, func_params},
+    func_like::{func_body_content, func_like, func_params},
     identifier::{identifier, identifier_ext},
     type_params::type_params,
     var::var,
@@ -127,7 +127,7 @@ where
         annotation.map(ClassMember::Annotation),
         constructor.map(ClassMember::Constructor),
         var.map(ClassMember::Var),
-        func.map(ClassMember::Func),
+        func_like.map(ClassMember::FuncLike),
     ))(s)
 }
 
@@ -181,7 +181,7 @@ mod tests {
     use nom::error::VerboseError;
 
     use crate::dart::{
-        func::{FuncBodyContent, FuncParam, FuncParamModifierSet, FuncParams},
+        func_like::{FuncBodyContent, FuncParam, FuncParamModifierSet, FuncParams},
         var::VarModifierSet,
         TypeParam, Var,
     };

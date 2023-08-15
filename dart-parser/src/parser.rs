@@ -5,8 +5,8 @@ mod common;
 mod directive;
 mod enum_ty;
 mod expr;
-mod func;
 mod func_call;
+mod func_like;
 mod identifier;
 mod scope;
 mod string;
@@ -28,7 +28,7 @@ use crate::{dart::*, parser::class::class};
 
 use self::{
     annotation::annotation, comment::comment, common::spbr, directive::directive, enum_ty::enum_ty,
-    func::func, var::var,
+    func_like::func_like, var::var,
 };
 
 type PResult<'s, T, E> = Result<(&'s str, T), nom::Err<E>>;
@@ -46,7 +46,7 @@ where
                     directive.map(Dart::Directive),
                     annotation.map(Dart::Annotation),
                     var.map(Dart::Var),
-                    func.map(Dart::Func),
+                    func_like.map(Dart::FuncLike),
                     class.map(Dart::Class),
                     enum_ty.map(Dart::Enum),
                 )),
@@ -66,8 +66,9 @@ mod tests {
         class::{ClassMember, ClassModifier, ClassModifierSet, Constructor},
         comment::Comment,
         directive::{Directive, Import},
-        func::{
-            FuncBody, FuncBodyContent, FuncModifierSet, FuncParam, FuncParamModifierSet, FuncParams,
+        func_like::{
+            Func, FuncBody, FuncBodyContent, FuncModifierSet, FuncParam, FuncParamModifierSet,
+            FuncParams,
         },
         var::{VarModifier, VarModifierSet},
     };
@@ -169,7 +170,7 @@ mod tests {
                             initializer: None,
                         }),],
                     }),
-                    Dart::Func(Func {
+                    Dart::FuncLike(FuncLike::Func(Func {
                         modifiers: FuncModifierSet::default(),
                         return_type: IdentifierExt {
                             name: "Map",
@@ -208,7 +209,7 @@ mod tests {
                             modifier: None,
                             content: FuncBodyContent::Block("{\n    print(\"Hello?\");\n}")
                         })
-                    }),
+                    })),
                 ]
             ))
         );
