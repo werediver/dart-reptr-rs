@@ -1,5 +1,5 @@
 use clap::Parser;
-use commands::scan_dir;
+use commands::{parse_file, scan_dir};
 use std::io;
 
 mod commands;
@@ -18,7 +18,7 @@ fn main() -> io::Result<()> {
 
     match cmd {
         RunCmd::Scan { dir, quiet } => scan_dir(dir, scan_dir::Options { quiet })?,
-        RunCmd::Parse { file: _ } => todo!(),
+        RunCmd::Parse { file } => parse_file(file)?,
     }
 
     Ok(())
