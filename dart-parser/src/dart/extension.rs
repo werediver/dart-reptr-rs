@@ -1,4 +1,4 @@
-use super::{Annotation, Comment, FuncLike, IdentifierExt, TypeParam};
+use super::{Annotation, Comment, FuncLike, IdentifierExt, TypeParam, Var};
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct Extension<'s> {
@@ -13,4 +13,6 @@ pub enum ExtensionMember<'s> {
     Comment(Comment<'s>),
     Annotation(Annotation<'s>),
     FuncLike(FuncLike<'s>),
+    /// Only static fields can be declared in extensions.
+    Var(Var<'s>),
 }

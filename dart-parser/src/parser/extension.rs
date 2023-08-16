@@ -17,7 +17,7 @@ use super::{
     func_like::func_like,
     identifier::{identifier, identifier_ext},
     type_params::type_params,
-    PResult,
+    var, PResult,
 };
 
 pub fn extension<'s, E>(s: &'s str) -> PResult<Extension, E>
@@ -67,5 +67,6 @@ where
         comment.map(ExtensionMember::Comment),
         annotation.map(ExtensionMember::Annotation),
         func_like.map(ExtensionMember::FuncLike),
+        var.map(ExtensionMember::Var),
     ))(s)
 }
