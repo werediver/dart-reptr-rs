@@ -136,7 +136,7 @@ where
     )(s)
 }
 
-fn class_member<'s, E>(s: &'s str) -> PResult<ClassMember, E>
+pub fn class_member<'s, E>(s: &'s str) -> PResult<ClassMember, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
