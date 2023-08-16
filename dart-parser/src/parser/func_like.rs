@@ -181,10 +181,10 @@ where
         // Required positional parameters
         terminated(
             separated_list0(
-                tuple((opt(spbr), tag(","), opt(spbr))),
-                func_param_pos(true),
+                pair(tag(","), opt(spbr)),
+                terminated(func_param_pos(true), opt(spbr)),
             ),
-            opt(tuple((opt(spbr), tag(","), opt(spbr)))),
+            opt(pair(tag(","), opt(spbr))),
         ),
         // Optional positional parameters
         opt(preceded(
