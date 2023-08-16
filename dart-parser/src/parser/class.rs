@@ -178,6 +178,7 @@ where
     alt((
         value(ConstructorModifier::Const, tag("const")),
         value(ConstructorModifier::Factory, tag("factory")),
+        value(ConstructorModifier::External, tag("external")),
     ))(s)
 }
 

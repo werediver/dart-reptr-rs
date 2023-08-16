@@ -61,4 +61,5 @@ pub struct Constructor<'s> {
 pub enum ConstructorModifier {
     Const,
     Factory,
+    External,
 }
