@@ -8,7 +8,25 @@ use nom::{
 
 use super::PResult;
 
-pub fn skip_many0<P, I, O, E>(p: P) -> impl Parser<I, (), E>
+/// Convert irrecoverable errors from into recoverable.
+///
+/// For use in shady parsers.
+pub fn uncut<P, I, O, E>(mut p: P) -> impl FnMut(I) -> nom::IResult<I, O, E>
+where
+    P: Parser<I, O, E>,
+    I: Clone + InputLength,
+    E: ParseError<I>,
+{
+    move |s| match p.parse(s) {
+        result @ Ok(_) => result,
+        result @ Err(nom::Err::Incomplete(_)) => result,
+        result @ Err(nom::Err::Error(_)) => result,
+        // Convert an irrecoverable error into a recoverable
+        Err(nom::Err::Failure(e)) => Err(nom::Err::Error(e)),
+    }
+}
+
+pub fn skip_many0<P, I, O, E>(p: P) -> impl FnMut(I) -> nom::IResult<I, (), E>
 where
     P: Parser<I, O, E>,
     I: Clone + InputLength,
@@ -17,7 +35,7 @@ where
     fold_many0(p, || {}, |_, _| {})
 }
 
-pub fn skip_many1<P, I, O, E>(p: P) -> impl Parser<I, (), E>
+pub fn skip_many1<P, I, O, E>(p: P) -> impl FnMut(I) -> nom::IResult<I, (), E>
 where
     P: Parser<I, O, E>,
     I: Clone + InputLength,
