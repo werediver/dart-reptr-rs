@@ -9,7 +9,6 @@ mod extension;
 mod func_call;
 mod func_like;
 mod identifier;
-mod scope;
 mod string;
 mod type_params;
 mod var;

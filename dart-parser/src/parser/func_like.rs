@@ -18,9 +18,9 @@ use crate::dart::{
 
 use super::{
     common::spbr,
+    expr::block,
     expr::expr,
     identifier::{identifier, identifier_ext},
-    scope::block,
     type_params::type_params,
     PResult,
 };
