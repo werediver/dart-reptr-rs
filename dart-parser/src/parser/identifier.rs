@@ -70,7 +70,7 @@ where
     .parse(s)
 }
 
-fn type_args<'s, E>(s: &'s str) -> PResult<Vec<IdentifierExt>, E>
+pub fn type_args<'s, E>(s: &'s str) -> PResult<Vec<IdentifierExt>, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {

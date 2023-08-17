@@ -19,7 +19,7 @@ use super::{common::skip_many0, PResult};
 /// literals.
 ///
 /// Return the body of the string without the enclosing quotes.
-pub fn string_simple<'s, E>(s: &'s str) -> PResult<&str, E>
+pub fn string<'s, E>(s: &'s str) -> PResult<&str, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
@@ -91,12 +91,12 @@ mod tests {
     #[test]
     fn string_simple_test() {
         assert_eq!(
-            string_simple::<VerboseError<_>>(r#""as${df}'gh'"x"#),
+            string::<VerboseError<_>>(r#""as${df}'gh'"x"#),
             Ok(("x", r#"as${df}'gh'"#))
         );
 
         assert_eq!(
-            string_simple::<VerboseError<_>>(r#"'as${df}"gh"'x"#),
+            string::<VerboseError<_>>(r#"'as${df}"gh"'x"#),
             Ok(("x", r#"as${df}"gh""#))
         );
     }

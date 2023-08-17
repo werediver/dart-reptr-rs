@@ -10,7 +10,7 @@ use nom::{
 
 use crate::dart::directive::{Directive, Import, PartOf};
 
-use super::{common::spbr, identifier::identifier, string::string_simple, PResult};
+use super::{common::spbr, identifier::identifier, string::string, PResult};
 
 pub fn directive<'s, E>(s: &'s str) -> PResult<Directive, E>
 where
@@ -35,7 +35,7 @@ where
         "export",
         preceded(
             pair(tag("export"), spbr),
-            cut(terminated(terminated(string_simple, opt(spbr)), tag(";"))),
+            cut(terminated(terminated(string, opt(spbr)), tag(";"))),
         ),
     )(s)
 }
@@ -50,7 +50,7 @@ where
             pair(tag("import"), spbr),
             cut(terminated(
                 tuple((
-                    terminated(string_simple, opt(spbr)),
+                    terminated(string, opt(spbr)),
                     opt(preceded(
                         pair(tag("as"), spbr),
                         terminated(identifier, opt(spbr)),
@@ -110,7 +110,7 @@ where
         "part",
         preceded(
             pair(tag("part"), spbr),
-            cut(terminated(string_simple, pair(opt(spbr), tag(";")))),
+            cut(terminated(string, pair(opt(spbr), tag(";")))),
         ),
     )(s)
 }
@@ -124,10 +124,7 @@ where
         preceded(
             tuple((tag("part"), spbr, tag("of"), spbr)),
             cut(terminated(
-                alt((
-                    string_simple.map(PartOf::LibPath),
-                    identifier.map(PartOf::LibName),
-                )),
+                alt((string.map(PartOf::LibPath), identifier.map(PartOf::LibName))),
                 pair(opt(spbr), tag(";")),
             )),
         ),
