@@ -8,7 +8,7 @@ use nom::{
 
 use crate::{dart::Expr, parser::common::spbr};
 
-use super::{common::uncut, identifier::identifier, string::string_simple, PResult};
+use super::{common::uncut, identifier::identifier, string::string, PResult};
 
 use nom::{
     bytes::complete::{is_not, tag},
@@ -29,7 +29,7 @@ where
     )
     .and_then(alt((
         terminated(identifier, eof).map(Expr::Ident),
-        terminated(string_simple, eof).map(Expr::String),
+        terminated(string, eof).map(Expr::String),
         |s: &'s str| Ok((&s[s.len()..], Expr::Verbatim(s))),
     )))
     .parse(s)
@@ -92,7 +92,7 @@ where
         uncut(recognize(type_args)),
         tag("<"), // LT/LTE
         tag(">"), // GT/GTE
-        string_simple,
+        string,
         any_scope,
     ))(s)
 }
