@@ -1,16 +1,18 @@
 use nom::{
     branch::alt,
     bytes::complete::{is_not, tag},
-    combinator::{cut, recognize},
+    character::complete::{char, one_of},
+    combinator::{cut, not, opt, recognize},
     error::{context, ContextError, ParseError},
-    sequence::{preceded, terminated},
+    multi::many_m_n,
+    sequence::{pair, preceded, terminated, tuple},
 };
 
 use super::{common::skip_many0, PResult};
 
-/// Parse a single- or double-quoted string literal without escape-sequences.
+/// Parse a single- or double-quoted single- or multiline string literal.
 ///
-/// Any backslash in the literal makes the parser fail.
+/// Escape sequences are recognized, but not decoded.
 ///
 /// String interpolation syntax is not recognized and is consumed as a part of
 /// the literal, as long as it doesn't make the parser fail due to nested string
@@ -21,22 +23,63 @@ pub fn string_simple<'s, E>(s: &'s str) -> PResult<&str, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
+    let tdq = preceded(
+        pair(tag("\"\"\""), opt(char('\n'))),
+        cut(terminated(
+            recognize(skip_many0(alt((
+                is_not("\\\""),
+                terminated(tag("\""), not(tag("\"\""))),
+                escape_seq,
+            )))),
+            tag("\"\"\""),
+        )),
+    );
+    let tsq = preceded(
+        pair(tag("'''"), opt(char('\n'))),
+        cut(terminated(
+            recognize(skip_many0(alt((
+                is_not("\\'"),
+                terminated(tag("'"), not(tag("''"))),
+                escape_seq,
+            )))),
+            tag("'''"),
+        )),
+    );
     let dq = preceded(
         tag("\""),
         cut(terminated(
-            recognize(skip_many0(is_not("\\\"\r\n"))),
+            recognize(skip_many0(alt((is_not("\\\"\r\n"), escape_seq)))),
             tag("\""),
         )),
     );
     let sq = preceded(
         tag("'"),
         cut(terminated(
-            recognize(skip_many0(is_not("\\'\r\n"))),
+            recognize(skip_many0(alt((is_not("\\'\r\n"), escape_seq)))),
             tag("'"),
         )),
     );
 
-    context("string_simple", alt((dq, sq)))(s)
+    context("string_simple", alt((tdq, tsq, dq, sq)))(s)
+}
+
+fn escape_seq<'s, E>(s: &'s str) -> PResult<&str, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
+    alt((
+        recognize(pair(char('\\'), one_of("nrfbtv'\""))),
+        recognize(pair(tag("\\x"), hex_digits(2, 2))),
+        recognize(tuple((tag("\\u{"), hex_digits(1, 6), char('}')))),
+        recognize(pair(tag("\\u"), hex_digits(4, 4))),
+    ))(s)
+}
+
+fn hex_digits<'s, E>(m: usize, n: usize) -> impl FnMut(&'s str) -> PResult<&str, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
+    recognize(many_m_n(m, n, one_of("0123456789ABCDEFabcdef")))
 }
 
 #[cfg(test)]
