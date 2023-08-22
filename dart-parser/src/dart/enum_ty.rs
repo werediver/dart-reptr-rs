@@ -1,9 +1,9 @@
-use super::{class::ClassMember, func_call::FuncArg, Annotation, Comment, IdentifierExt};
+use super::{class::ClassMember, func_call::FuncArg, Annotation, Comment, NotFuncType};
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct EnumTy<'s> {
     pub name: &'s str,
-    pub implements: Vec<IdentifierExt<'s>>,
+    pub implements: Vec<NotFuncType<'s>>,
     pub values: Vec<EnumMember<'s>>,
     pub members: Vec<ClassMember<'s>>,
 }

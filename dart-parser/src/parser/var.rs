@@ -16,7 +16,7 @@ use crate::dart::{
 use super::{
     common::spbr,
     expr::expr,
-    identifier::{identifier, identifier_ext},
+    ty::{identifier, ty},
     PResult,
 };
 
@@ -35,7 +35,7 @@ where
             alt((
                 // A type followed by a name
                 pair(
-                    terminated(identifier_ext, opt(spbr)).map(Some),
+                    terminated(ty, opt(spbr)).map(Some),
                     terminated(identifier, opt(spbr)),
                 ),
                 // Just a name
@@ -85,7 +85,7 @@ fn var_modifier<'s, E: ParseError<&'s str>>(s: &'s str) -> PResult<VarModifier, 
 mod tests {
     use nom::error::VerboseError;
 
-    use crate::dart::{Expr, IdentifierExt};
+    use crate::dart::{ty::Type, Expr, NotFuncType};
 
     use super::*;
 
@@ -97,11 +97,11 @@ mod tests {
                 " ",
                 Var {
                     modifiers: VarModifierSet::from_iter([VarModifier::Final]),
-                    var_type: Some(IdentifierExt {
+                    var_type: Some(Type::NotFunc(NotFuncType {
                         name: "String",
                         type_args: Vec::default(),
                         is_nullable: true,
-                    }),
+                    })),
                     name: "name",
                     initializer: None
                 }
@@ -135,11 +135,11 @@ mod tests {
                 " ",
                 Var {
                     modifiers: VarModifierSet::default(),
-                    var_type: Some(IdentifierExt {
+                    var_type: Some(Type::NotFunc(NotFuncType {
                         name: "List",
-                        type_args: vec![IdentifierExt::name("int")],
+                        type_args: vec![NotFuncType::name("int")],
                         is_nullable: false
-                    }),
+                    })),
                     name: "xs",
                     initializer: Some(Expr::Verbatim("[]")),
                 }
@@ -171,7 +171,7 @@ mod tests {
                 " ",
                 Var {
                     modifiers: VarModifierSet::default(),
-                    var_type: Some(IdentifierExt::name("double")),
+                    var_type: Some(Type::NotFunc(NotFuncType::name("double"))),
                     name: "x",
                     initializer: Some(Expr::Verbatim("0")),
                 }
@@ -187,7 +187,7 @@ mod tests {
                 " ",
                 Var {
                     modifiers: VarModifierSet::default(),
-                    var_type: Some(IdentifierExt::name("double")),
+                    var_type: Some(Type::NotFunc(NotFuncType::name("double"))),
                     name: "x",
                     initializer: None,
                 }
@@ -203,7 +203,7 @@ mod tests {
                 " ",
                 Var {
                     modifiers: VarModifierSet::from_iter([VarModifier::Late, VarModifier::Final]),
-                    var_type: Some(IdentifierExt::name("int")),
+                    var_type: Some(Type::NotFunc(NotFuncType::name("int"))),
                     name: "crash_count",
                     initializer: None,
                 }

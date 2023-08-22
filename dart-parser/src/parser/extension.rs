@@ -15,7 +15,7 @@ use super::{
     comment::comment,
     common::spbr,
     func_like::func_like,
-    identifier::{identifier, identifier_ext},
+    ty::{identifier, ty},
     type_params::type_params,
     var, PResult,
 };
@@ -31,7 +31,7 @@ where
             opt(terminated(identifier, opt(spbr))),
             opt(terminated(type_params, opt(spbr))),
             terminated(tag("on"), spbr),
-            terminated(identifier_ext, opt(spbr)),
+            terminated(ty, opt(spbr)),
             extension_body,
         ))
         .map(|(_, name, type_params, _, on, body)| Extension {

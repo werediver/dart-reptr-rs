@@ -8,7 +8,7 @@ use nom::{
 
 use crate::{dart::Expr, parser::common::spbr};
 
-use super::{common::uncut, identifier::identifier, string::string, PResult};
+use super::{common::uncut, string::string, ty::identifier, PResult};
 
 use nom::{
     bytes::complete::{is_not, tag},
@@ -17,7 +17,7 @@ use nom::{
     error::context,
 };
 
-use super::{common::skip_many1, identifier::type_args};
+use super::{common::skip_many1, ty::type_args};
 
 pub fn expr<'s, E>(s: &'s str) -> PResult<Expr, E>
 where

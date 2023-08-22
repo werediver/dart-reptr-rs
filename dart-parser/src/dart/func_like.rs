@@ -1,6 +1,6 @@
 use tiny_set::with_tiny_set;
 
-use super::{Expr, IdentifierExt, TypeParam};
+use super::{ty::Type, Expr, MaybeRequired, TypeParam};
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum FuncLike<'s> {
@@ -12,17 +12,17 @@ pub enum FuncLike<'s> {
 #[derive(PartialEq, Eq, Debug)]
 pub struct Func<'s> {
     pub modifiers: FuncModifierSet,
-    pub return_type: IdentifierExt<'s>,
+    pub return_type: Type<'s>,
     pub name: &'s str,
     pub type_params: Vec<TypeParam<'s>>,
-    pub params: FuncParams<'s>,
+    pub params: FuncParams<FuncParam<'s>>,
     pub body: Option<FuncBody<'s>>,
 }
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct Getter<'s> {
     pub modifiers: FuncModifierSet,
-    pub return_type: IdentifierExt<'s>,
+    pub return_type: Type<'s>,
     pub name: &'s str,
     pub body: Option<FuncBody<'s>>,
 }
@@ -32,7 +32,7 @@ pub struct Setter<'s> {
     pub modifiers: FuncModifierSet,
     pub name: &'s str,
     /// Setters must declare exactly one required positional parameter.
-    pub params: FuncParams<'s>,
+    pub params: FuncParams<FuncParam<'s>>,
     pub body: Option<FuncBody<'s>>,
 }
 
@@ -44,17 +44,31 @@ pub enum FuncModifier {
     Static,
 }
 
-#[derive(PartialEq, Eq, Default, Debug)]
-pub struct FuncParams<'s> {
-    pub positional: Vec<FuncParam<'s>>,
-    pub named: Vec<FuncParam<'s>>,
+#[derive(PartialEq, Eq, Debug)]
+pub struct FuncParams<Param> {
+    pub positional_req: Vec<Param>,
+    pub extra: Option<FuncParamsExtra<Param>>,
+}
+
+impl<T> Default for FuncParams<T> {
+    fn default() -> Self {
+        Self {
+            positional_req: Vec::new(),
+            extra: None,
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub enum FuncParamsExtra<Param> {
+    PositionalOpt(Vec<Param>),
+    Named(Vec<MaybeRequired<Param>>),
 }
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct FuncParam<'s> {
-    pub is_required: bool,
     pub modifiers: FuncParamModifierSet,
-    pub param_type: Option<IdentifierExt<'s>>,
+    pub param_type: Option<Type<'s>>,
     pub name: &'s str,
     pub initializer: Option<Expr<'s>>,
 }
@@ -63,6 +77,7 @@ pub struct FuncParam<'s> {
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
 #[repr(usize)]
 pub enum FuncParamModifier {
+    /// Can only be used for parameters in instance methods.
     Covariant,
     Final,
 }

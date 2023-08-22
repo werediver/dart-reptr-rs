@@ -7,7 +7,8 @@ pub mod expr;
 pub mod extension;
 pub mod func_call;
 pub mod func_like;
-pub mod identifier_ext;
+pub mod maybe_required;
+pub mod ty;
 pub mod type_param;
 pub mod var;
 
@@ -20,7 +21,8 @@ pub use expr::Expr;
 pub use extension::Extension;
 pub use func_call::FuncCall;
 pub use func_like::FuncLike;
-pub use identifier_ext::IdentifierExt;
+pub use maybe_required::MaybeRequired;
+pub use ty::NotFuncType;
 pub use type_param::TypeParam;
 pub use var::Var;
 

@@ -13,7 +13,7 @@ use crate::dart::func_call::{FuncArg, FuncCall};
 use super::{
     common::spbr,
     expr::expr,
-    identifier::{identifier, identifier_ext},
+    ty::{identifier, not_func_type},
     PResult,
 };
 
@@ -23,7 +23,7 @@ where
 {
     context(
         "func_call",
-        pair(terminated(identifier_ext, opt(spbr)), func_args)
+        pair(terminated(not_func_type, opt(spbr)), func_args)
             .map(|(ident, args)| FuncCall { ident, args }),
     )(s)
 }
@@ -65,7 +65,7 @@ where
 mod tests {
     use nom::error::VerboseError;
 
-    use crate::dart::{func_call::FuncArg, Expr, IdentifierExt};
+    use crate::dart::{func_call::FuncArg, Expr, NotFuncType};
 
     use super::*;
 
@@ -76,7 +76,7 @@ mod tests {
             Ok((
                 " x",
                 FuncCall {
-                    ident: IdentifierExt::name("f"),
+                    ident: NotFuncType::name("f"),
                     args: Vec::new(),
                 }
             ))
@@ -90,9 +90,9 @@ mod tests {
             Ok((
                 " x",
                 FuncCall {
-                    ident: IdentifierExt {
+                    ident: NotFuncType {
                         name: "f",
-                        type_args: vec![IdentifierExt::name("int")],
+                        type_args: vec![NotFuncType::name("int")],
                         is_nullable: false
                     },
                     args: vec![

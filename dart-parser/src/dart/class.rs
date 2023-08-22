@@ -1,8 +1,8 @@
 use tiny_set::with_tiny_set;
 
 use super::{
-    func_like::{FuncBodyContent, FuncParams},
-    Annotation, Comment, FuncLike, IdentifierExt, TypeParam, Var,
+    func_like::{FuncBodyContent, FuncParam, FuncParams},
+    Annotation, Comment, FuncLike, NotFuncType, TypeParam, Var,
 };
 
 #[derive(PartialEq, Eq, Debug)]
@@ -11,11 +11,11 @@ pub struct Class<'s> {
     pub name: &'s str,
     pub type_params: Vec<TypeParam<'s>>,
     /// The base class.
-    pub extends: Option<IdentifierExt<'s>>,
+    pub extends: Option<NotFuncType<'s>>,
     /// Mix-ins.
-    pub with: Vec<IdentifierExt<'s>>,
+    pub with: Vec<NotFuncType<'s>>,
     /// Interfaces.
-    pub implements: Vec<IdentifierExt<'s>>,
+    pub implements: Vec<NotFuncType<'s>>,
     pub body: Vec<ClassMember<'s>>,
 }
 
@@ -53,7 +53,7 @@ pub enum ClassMember<'s> {
 pub struct Constructor<'s> {
     pub modifier: Option<ConstructorModifier>,
     pub name: &'s str,
-    pub params: FuncParams<'s>,
+    pub params: FuncParams<FuncParam<'s>>,
     pub body: Option<FuncBodyContent<'s>>,
 }
 
