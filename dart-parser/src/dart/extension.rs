@@ -1,10 +1,10 @@
-use super::{Annotation, Comment, FuncLike, IdentifierExt, TypeParam, Var};
+use super::{ty::Type, Annotation, Comment, FuncLike, TypeParam, Var};
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct Extension<'s> {
     pub name: Option<&'s str>,
     pub type_params: Vec<TypeParam<'s>>,
-    pub on: IdentifierExt<'s>,
+    pub on: Type<'s>,
     pub body: Vec<ExtensionMember<'s>>,
 }
 

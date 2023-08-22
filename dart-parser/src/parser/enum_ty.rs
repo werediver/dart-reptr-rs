@@ -20,7 +20,7 @@ use super::{
     comment::comment,
     common::spbr,
     func_call::func_args,
-    identifier::identifier,
+    ty::identifier,
     PResult,
 };
 
@@ -120,7 +120,7 @@ where
 mod tests {
     use nom::error::VerboseError;
 
-    use crate::dart::{Annotation, Comment, FuncCall, IdentifierExt};
+    use crate::dart::{Annotation, Comment, FuncCall, NotFuncType};
 
     use super::*;
 
@@ -157,7 +157,7 @@ mod tests {
                     values: vec![
                         EnumMember::Comment(Comment::SingleLine("// Here it comes. Big...\n")),
                         EnumMember::Annotation(Annotation::FuncCall(FuncCall {
-                            ident: IdentifierExt::name("Badaboom"),
+                            ident: NotFuncType::name("Badaboom"),
                             args: Vec::new()
                         })),
                         EnumMember::Value(EnumValue {
@@ -179,7 +179,7 @@ mod tests {
                 "x",
                 EnumTy {
                     name: "AnyAngle",
-                    implements: vec![IdentifierExt::name("Serializable")],
+                    implements: vec![NotFuncType::name("Serializable")],
                     values: vec![EnumMember::Value(EnumValue {
                         name: "thirtyDegrees",
                         args: Vec::new(),

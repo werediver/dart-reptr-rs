@@ -10,7 +10,7 @@ use nom::{
 
 use crate::dart::{
     class::{ClassMember, ClassModifier, ClassModifierSet, Constructor, ConstructorModifier},
-    Class, IdentifierExt,
+    Class, NotFuncType,
 };
 
 use super::{
@@ -19,7 +19,7 @@ use super::{
     common::*,
     expr::expr,
     func_like::{func_body_content, func_like, func_params},
-    identifier::{identifier, identifier_ext},
+    ty::{identifier, not_func_type},
     type_params::type_params,
     var::var,
     PResult,
@@ -78,17 +78,17 @@ fn class_modifier<'s, E: ParseError<&'s str>>(s: &'s str) -> PResult<ClassModifi
     ))(s)
 }
 
-fn extends_clause<'s, E>(s: &'s str) -> PResult<IdentifierExt, E>
+fn extends_clause<'s, E>(s: &'s str) -> PResult<NotFuncType, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
     context(
         "extends_clause",
-        preceded(pair(tag("extends"), spbr), cut(identifier_ext)),
+        preceded(pair(tag("extends"), spbr), cut(not_func_type)),
     )(s)
 }
 
-pub fn implements_clause<'s, E>(s: &'s str) -> PResult<Vec<IdentifierExt>, E>
+pub fn implements_clause<'s, E>(s: &'s str) -> PResult<Vec<NotFuncType>, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
@@ -98,13 +98,13 @@ where
             pair(tag("implements"), spbr),
             cut(separated_list1(
                 tuple((opt(spbr), tag(","), opt(spbr))),
-                identifier_ext,
+                not_func_type,
             )),
         ),
     )(s)
 }
 
-pub fn with_clause<'s, E>(s: &'s str) -> PResult<Vec<IdentifierExt>, E>
+pub fn with_clause<'s, E>(s: &'s str) -> PResult<Vec<NotFuncType>, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
@@ -114,7 +114,7 @@ where
             pair(tag("with"), spbr),
             cut(separated_list1(
                 tuple((opt(spbr), tag(","), opt(spbr))),
-                identifier_ext,
+                not_func_type,
             )),
         ),
     )(s)
@@ -201,6 +201,7 @@ mod tests {
 
     use crate::dart::{
         func_like::{FuncBodyContent, FuncParam, FuncParamModifierSet, FuncParams},
+        ty::Type,
         var::VarModifierSet,
         TypeParam, Var,
     };
@@ -211,7 +212,7 @@ mod tests {
     fn extends_test() {
         assert_eq!(
             extends_clause::<VerboseError<_>>("extends Base "),
-            Ok((" ", IdentifierExt::name("Base")))
+            Ok((" ", NotFuncType::name("Base")))
         );
     }
 
@@ -222,10 +223,10 @@ mod tests {
             Ok((
                 " ",
                 vec![
-                    IdentifierExt::name("Salt"),
-                    IdentifierExt {
+                    NotFuncType::name("Salt"),
+                    NotFuncType {
                         name: "Pepper",
-                        type_args: vec![IdentifierExt::name("Black")],
+                        type_args: vec![NotFuncType::name("Black")],
                         is_nullable: false,
                     }
                 ]
@@ -240,9 +241,9 @@ mod tests {
             Ok((
                 " ",
                 vec![
-                    IdentifierExt::name("A"),
-                    IdentifierExt::name("B"),
-                    IdentifierExt::name("C")
+                    NotFuncType::name("A"),
+                    NotFuncType::name("B"),
+                    NotFuncType::name("C")
                 ]
             ))
         );
@@ -266,12 +267,12 @@ mod tests {
                         },
                         TypeParam {
                             name: "U",
-                            extends: Some(IdentifierExt::name("Object"))
+                            extends: Some(Type::NotFunc(NotFuncType::name("Object")))
                         },
                     ],
-                    extends: Some(IdentifierExt::name("Base")),
+                    extends: Some(NotFuncType::name("Base")),
                     with: Vec::new(),
-                    implements: vec![IdentifierExt::name("A"), IdentifierExt::name("B")],
+                    implements: vec![NotFuncType::name("A"), NotFuncType::name("B")],
                     body: Vec::new(),
                 }
             ))
@@ -295,7 +296,7 @@ mod tests {
                         ClassMember::Annotation(crate::dart::Annotation::Ident("override")),
                         ClassMember::Var(Var {
                             modifiers: VarModifierSet::default(),
-                            var_type: Some(IdentifierExt::name("String")),
+                            var_type: Some(Type::NotFunc(NotFuncType::name("String"))),
                             name: "id",
                             initializer: None,
                         }),
@@ -315,17 +316,17 @@ mod tests {
                     modifiers: ClassModifierSet::from_iter([ClassModifier::Class]),
                     name: "Record",
                     type_params: Vec::new(),
-                    extends: Some(IdentifierExt {
+                    extends: Some(NotFuncType {
                         name: "Base",
-                        type_args: vec![IdentifierExt::name("T")],
+                        type_args: vec![NotFuncType::name("T")],
                         is_nullable: false,
                     }),
                     with: Vec::new(),
-                    implements: vec![IdentifierExt {
+                    implements: vec![NotFuncType {
                         name: "A",
-                        type_args: vec![IdentifierExt {
+                        type_args: vec![NotFuncType {
                             name: "Future",
-                            type_args: vec![IdentifierExt::name("void")],
+                            type_args: vec![NotFuncType::name("void")],
                             is_nullable: false,
                         }],
                         is_nullable: false,
@@ -362,14 +363,13 @@ mod tests {
                     modifier: None,
                     name: "Record",
                     params: FuncParams {
-                        positional: vec![FuncParam {
-                            is_required: true,
+                        positional_req: vec![FuncParam {
                             modifiers: FuncParamModifierSet::default(),
                             param_type: None,
                             name: "this.id",
                             initializer: None,
                         }],
-                        named: Vec::new(),
+                        extra: None
                     },
                     body: None,
                 }

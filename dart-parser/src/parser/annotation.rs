@@ -9,7 +9,7 @@ use nom::{
 
 use crate::dart::Annotation;
 
-use super::{func_call::func_call, identifier::identifier, PResult};
+use super::{func_call::func_call, ty::identifier, PResult};
 
 pub fn annotation<'s, E>(s: &'s str) -> PResult<Annotation, E>
 where
@@ -28,7 +28,7 @@ where
 mod tests {
     use nom::error::VerboseError;
 
-    use crate::dart::{func_call::FuncArg, Expr, FuncCall, IdentifierExt};
+    use crate::dart::{func_call::FuncArg, Expr, FuncCall, NotFuncType};
 
     use super::*;
 
@@ -47,7 +47,7 @@ mod tests {
             Ok((
                 "\nx",
                 Annotation::FuncCall(FuncCall {
-                    ident: IdentifierExt::name("JsonSerializable"),
+                    ident: NotFuncType::name("JsonSerializable"),
                     args: Vec::new(),
                 })
             ))
@@ -63,7 +63,7 @@ mod tests {
             Ok((
                 "\nx",
                 Annotation::FuncCall(FuncCall {
-                    ident: IdentifierExt::name("JsonSerializable"),
+                    ident: NotFuncType::name("JsonSerializable"),
                     args: vec![
                         FuncArg {
                             name: None,

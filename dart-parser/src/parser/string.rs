@@ -60,7 +60,7 @@ where
         )),
     );
 
-    context("string_simple", alt((tdq, tsq, dq, sq)))(s)
+    context("string", alt((tdq, tsq, dq, sq)))(s)
 }
 
 fn escape_seq<'s, E>(s: &'s str) -> PResult<&str, E>

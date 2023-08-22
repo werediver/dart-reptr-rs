@@ -8,8 +8,8 @@ mod expr;
 mod extension;
 mod func_call;
 mod func_like;
-mod identifier;
 mod string;
+mod ty;
 mod type_params;
 mod var;
 
@@ -69,8 +69,9 @@ mod tests {
         directive::{Directive, Import},
         func_like::{
             Func, FuncBody, FuncBodyContent, FuncModifierSet, FuncParam, FuncParamModifierSet,
-            FuncParams,
+            FuncParams, FuncParamsExtra,
         },
+        ty::Type,
         var::{VarModifier, VarModifierSet},
     };
 
@@ -102,7 +103,7 @@ mod tests {
                             VarModifier::Late,
                             VarModifier::Final
                         ]),
-                        var_type: Some(IdentifierExt::name("int")),
+                        var_type: Some(Type::NotFunc(NotFuncType::name("int"))),
                         name: "crash_count",
                         initializer: None,
                     }),
@@ -118,20 +119,19 @@ mod tests {
                                 modifier: None,
                                 name: "Base",
                                 params: FuncParams {
-                                    positional: vec![FuncParam {
-                                        is_required: true,
+                                    positional_req: vec![FuncParam {
                                         modifiers: FuncParamModifierSet::default(),
                                         param_type: None,
                                         name: "this.id",
                                         initializer: None
                                     }],
-                                    named: Vec::new(),
+                                    extra: None,
                                 },
                                 body: None,
                             }),
                             ClassMember::Var(Var {
                                 modifiers: VarModifierSet::from_iter([VarModifier::Final]),
-                                var_type: Some(IdentifierExt::name("String")),
+                                var_type: Some(Type::NotFunc(NotFuncType::name("String"))),
                                 name: "id",
                                 initializer: None,
                             }),
@@ -145,18 +145,18 @@ mod tests {
                             name: "T",
                             extends: None
                         }],
-                        extends: Some(IdentifierExt::name("Base")),
+                        extends: Some(NotFuncType::name("Base")),
                         with: Vec::new(),
                         implements: vec![
-                            IdentifierExt {
+                            NotFuncType {
                                 name: "A",
                                 type_args: vec![
-                                    IdentifierExt {
+                                    NotFuncType {
                                         name: "Future",
-                                        type_args: vec![IdentifierExt::name("void")],
+                                        type_args: vec![NotFuncType::name("void")],
                                         is_nullable: false,
                                     },
-                                    IdentifierExt {
+                                    NotFuncType {
                                         name: "B",
                                         type_args: Vec::default(),
                                         is_nullable: true,
@@ -164,49 +164,44 @@ mod tests {
                                 ],
                                 is_nullable: false,
                             },
-                            IdentifierExt::name("C")
+                            NotFuncType::name("C")
                         ],
                         body: vec![ClassMember::Var(Var {
                             modifiers: VarModifierSet::default(),
-                            var_type: Some(IdentifierExt::name("String")),
+                            var_type: Some(Type::NotFunc(NotFuncType::name("String"))),
                             name: "name",
                             initializer: None,
                         }),],
                     }),
                     Dart::FuncLike(FuncLike::Func(Func {
                         modifiers: FuncModifierSet::default(),
-                        return_type: IdentifierExt {
+                        return_type: Type::NotFunc(NotFuncType {
                             name: "Map",
                             type_args: vec![
-                                IdentifierExt::name("String"),
-                                IdentifierExt {
+                                NotFuncType::name("String"),
+                                NotFuncType {
                                     name: "Object",
                                     type_args: Vec::new(),
                                     is_nullable: true,
                                 }
                             ],
                             is_nullable: false,
-                        },
+                        }),
                         name: "_recordToJson",
                         type_params: Vec::new(),
                         params: FuncParams {
-                            positional: vec![
-                                FuncParam {
-                                    is_required: true,
-                                    modifiers: FuncParamModifierSet::default(),
-                                    param_type: Some(IdentifierExt::name("Record")),
-                                    name: "o",
-                                    initializer: None,
-                                },
-                                FuncParam {
-                                    is_required: false,
-                                    modifiers: FuncParamModifierSet::default(),
-                                    param_type: Some(IdentifierExt::name("bool")),
-                                    name: "quack",
-                                    initializer: Some(Expr::Ident("false"))
-                                }
-                            ],
-                            named: Vec::new(),
+                            positional_req: vec![FuncParam {
+                                modifiers: FuncParamModifierSet::default(),
+                                param_type: Some(Type::NotFunc(NotFuncType::name("Record"))),
+                                name: "o",
+                                initializer: None
+                            },],
+                            extra: Some(FuncParamsExtra::PositionalOpt(vec![FuncParam {
+                                modifiers: FuncParamModifierSet::default(),
+                                param_type: Some(Type::NotFunc(NotFuncType::name("bool"))),
+                                name: "quack",
+                                initializer: Some(Expr::Ident("false"))
+                            }]))
                         },
                         body: Some(FuncBody {
                             modifier: None,

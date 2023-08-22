@@ -1,11 +1,11 @@
 use tiny_set::with_tiny_set;
 
-use super::{Expr, IdentifierExt};
+use super::{ty::Type, Expr};
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct Var<'s> {
     pub modifiers: VarModifierSet,
-    pub var_type: Option<IdentifierExt<'s>>,
+    pub var_type: Option<Type<'s>>,
     pub name: &'s str,
     pub initializer: Option<Expr<'s>>,
 }
@@ -19,5 +19,6 @@ pub enum VarModifier {
     Const,
     Final,
     Late,
+    /// Can only be used before non-final instance fields.
     Covariant,
 }

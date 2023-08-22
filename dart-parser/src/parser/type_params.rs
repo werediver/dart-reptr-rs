@@ -11,7 +11,7 @@ use crate::dart::TypeParam;
 
 use super::{
     common::spbr,
-    identifier::{identifier, identifier_ext},
+    ty::{identifier, ty},
     PResult,
 };
 
@@ -39,10 +39,7 @@ where
         "type_param",
         pair(
             identifier,
-            opt(preceded(
-                tuple((spbr, tag("extends"), spbr)),
-                cut(identifier_ext),
-            )),
+            opt(preceded(tuple((spbr, tag("extends"), spbr)), cut(ty))),
         )
         .map(|(name, extends)| TypeParam { name, extends }),
     )(s)

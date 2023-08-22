@@ -11,16 +11,17 @@ use nom::{
 use crate::dart::{
     func_like::{
         Func, FuncBody, FuncBodyContent, FuncBodyModifier, FuncModifier, FuncModifierSet,
-        FuncParam, FuncParamModifier, FuncParamModifierSet, FuncParams, Getter, Setter,
+        FuncParam, FuncParamModifier, FuncParamModifierSet, FuncParams, FuncParamsExtra, Getter,
+        Setter,
     },
-    FuncLike,
+    FuncLike, MaybeRequired,
 };
 
 use super::{
     common::spbr,
     expr::block,
     expr::expr,
-    identifier::{identifier, identifier_ext},
+    ty::{identifier, ty},
     type_params::type_params,
     PResult,
 };
@@ -52,7 +53,7 @@ where
                 success(FuncModifierSet::default()),
             )),
             // Return type
-            terminated(identifier_ext, opt(spbr)),
+            terminated(ty, opt(spbr)),
             // Function name
             terminated(identifier, opt(spbr)),
             opt(terminated(type_params, opt(spbr))),
@@ -85,7 +86,7 @@ where
                 success(FuncModifierSet::default()),
             )),
             // Return type
-            terminated(identifier_ext, opt(spbr)),
+            terminated(ty, opt(spbr)),
             terminated(tag("get"), spbr),
             // Getter name
             terminated(identifier, opt(spbr)),
@@ -149,7 +150,7 @@ fn func_modifier<'s, E: ParseError<&'s str>>(s: &'s str) -> PResult<FuncModifier
     ))(s)
 }
 
-pub fn func_params<'s, E>(s: &'s str) -> PResult<FuncParams, E>
+pub fn func_params<'s, E>(s: &'s str) -> PResult<FuncParams<FuncParam>, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
@@ -159,98 +160,91 @@ where
             pair(tag("("), opt(spbr)),
             cut(terminated(
                 pair(
-                    terminated(func_params_pos, opt(spbr)),
-                    opt(terminated(func_params_named, opt(spbr))),
+                    func_params_pos_req,
+                    opt(alt((
+                        func_params_pos_opt.map(FuncParamsExtra::PositionalOpt),
+                        func_params_named.map(FuncParamsExtra::Named),
+                    ))),
                 ),
-                tag(")"),
+                pair(opt(spbr), tag(")")),
             )),
         )
-        .map(|(positional, named)| FuncParams {
-            positional,
-            named: named.unwrap_or(Vec::new()),
+        .map(|(positional_req, extra)| FuncParams {
+            positional_req,
+            extra,
         }),
     )
     .parse(s)
 }
 
-fn func_params_pos<'s, E>(s: &'s str) -> PResult<Vec<FuncParam>, E>
+fn func_params_pos_req<'s, E>(s: &'s str) -> PResult<Vec<FuncParam>, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
-    pair(
-        // Required positional parameters
-        terminated(
+    terminated(
+        separated_list0(
+            pair(tag(","), opt(spbr)),
+            terminated(func_param_pos, opt(spbr)),
+        ),
+        opt(pair(tag(","), opt(spbr))),
+    )(s)
+}
+
+fn func_params_pos_opt<'s, E>(s: &'s str) -> PResult<Vec<FuncParam>, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
+    preceded(
+        pair(tag("["), opt(spbr)),
+        cut(terminated(
             separated_list0(
                 pair(tag(","), opt(spbr)),
-                terminated(func_param_pos(true), opt(spbr)),
+                terminated(func_param_pos, opt(spbr)),
             ),
-            opt(pair(tag(","), opt(spbr))),
-        ),
-        // Optional positional parameters
-        opt(preceded(
-            pair(tag("["), opt(spbr)),
-            cut(terminated(
-                separated_list0(
-                    pair(tag(","), opt(spbr)),
-                    terminated(func_param_pos(false), opt(spbr)),
-                ),
-                tuple((opt(pair(tag(","), opt(spbr))), tag("]"))),
-            )),
+            pair(opt(pair(tag(","), opt(spbr))), tag("]")),
         )),
-    )
-    .map(|(mut req, opt)| {
-        if let Some(mut opt) = opt {
-            req.append(&mut opt);
-        }
-
-        req
-    })
-    .parse(s)
+    )(s)
 }
 
-fn func_param_pos<'s, E>(is_required: bool) -> impl FnMut(&'s str) -> PResult<FuncParam, E>
+fn func_param_pos<'s, E>(s: &'s str) -> PResult<FuncParam, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
-    move |s| {
-        context(
-            "func_param_pos",
-            tuple((
-                alt((
-                    terminated(func_param_modifier_set, spbr),
-                    success(FuncParamModifierSet::default()),
-                )),
-                opt(terminated(tag("var"), spbr)),
-                alt((
-                    // A type followed by a name
-                    pair(
-                        terminated(identifier_ext, opt(spbr)).map(Some),
-                        terminated(identifier, opt(spbr)),
-                    ),
-                    // Just a name
-                    terminated(identifier, opt(spbr)).map(|id| (None, id)),
-                )),
-                // An initializer
-                opt(preceded(
-                    pair(tag("="), opt(spbr)),
-                    cut(terminated(expr, opt(spbr))),
-                )),
-            ))
-            .map(
-                |(modifiers, _, (param_type, name), initializer)| FuncParam {
-                    is_required,
-                    modifiers,
-                    param_type,
-                    name,
-                    initializer,
-                },
-            ),
-        )
-        .parse(s)
-    }
+    context(
+        "func_param_pos",
+        tuple((
+            alt((
+                terminated(func_param_modifier_set, spbr),
+                success(FuncParamModifierSet::default()),
+            )),
+            opt(terminated(tag("var"), spbr)),
+            alt((
+                // A type followed by a name
+                pair(
+                    terminated(ty, opt(spbr)).map(Some),
+                    terminated(identifier, opt(spbr)),
+                ),
+                // Just a name
+                terminated(identifier, opt(spbr)).map(|id| (None, id)),
+            )),
+            // An initializer
+            opt(preceded(
+                pair(tag("="), opt(spbr)),
+                cut(terminated(expr, opt(spbr))),
+            )),
+        ))
+        .map(
+            |(modifiers, _, (param_type, name), initializer)| FuncParam {
+                modifiers,
+                param_type,
+                name,
+                initializer,
+            },
+        ),
+    )(s)
 }
 
-fn func_params_named<'s, E>(s: &'s str) -> PResult<Vec<FuncParam>, E>
+fn func_params_named<'s, E>(s: &'s str) -> PResult<Vec<MaybeRequired<FuncParam>>, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
@@ -269,7 +263,7 @@ where
     )(s)
 }
 
-fn func_param_named<'s, E>(s: &'s str) -> PResult<FuncParam, E>
+fn func_param_named<'s, E>(s: &'s str) -> PResult<MaybeRequired<FuncParam>, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
@@ -285,7 +279,7 @@ where
             alt((
                 // A type followed by a name
                 pair(
-                    terminated(identifier_ext, opt(spbr)).map(Some),
+                    terminated(ty, opt(spbr)).map(Some),
                     terminated(identifier, opt(spbr)),
                 ),
                 // Just a name
@@ -297,15 +291,17 @@ where
                 cut(terminated(expr, opt(spbr))),
             )),
         ))
-        .map(
-            |(req, modifiers, _, (param_type, name), initializer)| FuncParam {
-                is_required: req.is_some(),
-                modifiers,
-                param_type,
-                name,
-                initializer,
-            },
-        ),
+        .map(|(req, modifiers, _, (param_type, name), initializer)| {
+            MaybeRequired::new(
+                req.is_some(),
+                FuncParam {
+                    modifiers,
+                    param_type,
+                    name,
+                    initializer,
+                },
+            )
+        }),
     )
     .parse(s)
 }
@@ -375,7 +371,7 @@ fn func_body_modifier<'s, E: ParseError<&'s str>>(s: &'s str) -> PResult<FuncBod
 mod tests {
     use nom::error::VerboseError;
 
-    use crate::dart::{Expr, IdentifierExt, TypeParam};
+    use crate::dart::{ty::Type, Expr, NotFuncType, TypeParam};
 
     use super::*;
 
@@ -387,16 +383,16 @@ mod tests {
                 "x",
                 Func {
                     modifiers: FuncModifierSet::default(),
-                    return_type: IdentifierExt::name("void"),
+                    return_type: Type::NotFunc(NotFuncType::name("void")),
                     name: "f",
                     type_params: vec![
                         TypeParam {
                             name: "T",
-                            extends: Some(IdentifierExt {
+                            extends: Some(Type::NotFunc(NotFuncType {
                                 name: "Object",
                                 type_args: Vec::new(),
                                 is_nullable: true
-                            }),
+                            })),
                         },
                         TypeParam {
                             name: "U",
@@ -404,8 +400,8 @@ mod tests {
                         }
                     ],
                     params: FuncParams {
-                        positional: Vec::new(),
-                        named: Vec::new(),
+                        positional_req: Vec::new(),
+                        extra: None,
                     },
                     body: Some(FuncBody {
                         modifier: None,
@@ -426,42 +422,36 @@ mod tests {
                 "x",
                 Func {
                     modifiers: FuncModifierSet::default(),
-                    return_type: IdentifierExt::name("void"),
+                    return_type: Type::NotFunc(NotFuncType::name("void")),
                     name: "f",
                     type_params: Vec::new(),
                     params: FuncParams {
-                        positional: vec![
+                        positional_req: vec![
                             FuncParam {
-                                is_required: true,
                                 modifiers: FuncParamModifierSet::default(),
-                                param_type: Some(IdentifierExt::name("int")),
+                                param_type: Some(Type::NotFunc(NotFuncType::name("int"))),
                                 name: "x",
                                 initializer: None,
                             },
                             FuncParam {
-                                is_required: true,
                                 modifiers: FuncParamModifierSet::from_iter([
                                     FuncParamModifier::Final
                                 ]),
-                                param_type: Some(IdentifierExt {
+                                param_type: Some(Type::NotFunc(NotFuncType {
                                     name: "double",
                                     type_args: Vec::new(),
                                     is_nullable: true,
-                                }),
+                                })),
                                 name: "y",
                                 initializer: None,
                             },
-                            FuncParam {
-                                is_required: false,
-                                modifiers: FuncParamModifierSet::from_iter([
-                                    FuncParamModifier::Final
-                                ]),
-                                param_type: Some(IdentifierExt::name("bool",)),
-                                name: "mystery_flag",
-                                initializer: Some(Expr::Ident("false")),
-                            }
                         ],
-                        named: Vec::new(),
+                        extra: Some(FuncParamsExtra::PositionalOpt(vec![FuncParam {
+                            modifiers: FuncParamModifierSet::from_iter([FuncParamModifier::Final]),
+                            param_type: Some(Type::NotFunc(NotFuncType::name("bool"))),
+                            name: "mystery_flag",
+                            initializer: Some(Expr::Ident("false")),
+                        }])),
                     },
                     body: Some(FuncBody {
                         modifier: None,
@@ -480,16 +470,16 @@ mod tests {
                 "x",
                 Func {
                     modifiers: FuncModifierSet::default(),
-                    return_type: IdentifierExt {
+                    return_type: Type::NotFunc(NotFuncType {
                         name: "Iterable",
-                        type_args: vec![IdentifierExt::name("int")],
+                        type_args: vec![NotFuncType::name("int")],
                         is_nullable: false
-                    },
+                    }),
                     name: "f",
                     type_params: Vec::new(),
                     params: FuncParams {
-                        positional: Vec::new(),
-                        named: Vec::new(),
+                        positional_req: Vec::new(),
+                        extra: None,
                     },
                     body: Some(FuncBody {
                         modifier: Some(FuncBodyModifier::SyncGenerator),
@@ -508,16 +498,16 @@ mod tests {
                 "x",
                 Func {
                     modifiers: FuncModifierSet::from_iter([FuncModifier::Static]),
-                    return_type: IdentifierExt {
+                    return_type: Type::NotFunc(NotFuncType {
                         name: "List",
-                        type_args: vec![IdentifierExt::name("String")],
+                        type_args: vec![NotFuncType::name("String")],
                         is_nullable: false,
-                    },
+                    }),
                     name: "f",
                     type_params: Vec::new(),
                     params: FuncParams {
-                        positional: Vec::new(),
-                        named: Vec::new(),
+                        positional_req: Vec::new(),
+                        extra: None,
                     },
                     body: Some(FuncBody {
                         modifier: None,
@@ -536,16 +526,16 @@ mod tests {
                 "x",
                 Func {
                     modifiers: FuncModifierSet::from_iter([FuncModifier::Static]),
-                    return_type: IdentifierExt {
+                    return_type: Type::NotFunc(NotFuncType {
                         name: "Future",
-                        type_args: vec![IdentifierExt::name("String")],
+                        type_args: vec![NotFuncType::name("String")],
                         is_nullable: false,
-                    },
+                    }),
                     name: "f",
                     type_params: Vec::new(),
                     params: FuncParams {
-                        positional: Vec::new(),
-                        named: Vec::new(),
+                        positional_req: Vec::new(),
+                        extra: None,
                     },
                     body: Some(FuncBody {
                         modifier: Some(FuncBodyModifier::Async),
@@ -577,14 +567,13 @@ mod tests {
                     modifiers: FuncModifierSet::default(),
                     name: "name",
                     params: FuncParams {
-                        positional: vec![FuncParam {
+                        positional_req: vec![FuncParam {
                             name: "value",
-                            is_required: true,
                             modifiers: FuncParamModifierSet::default(),
-                            param_type: Some(IdentifierExt::name("String")),
+                            param_type: Some(Type::NotFunc(NotFuncType::name("String"))),
                             initializer: None
                         }],
-                        named: Vec::new()
+                        extra: None
                     },
                     body: Some(FuncBody {
                         modifier: None,

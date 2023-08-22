@@ -1,8 +1,8 @@
-use super::{Expr, IdentifierExt};
+use super::{Expr, NotFuncType};
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct FuncCall<'s> {
-    pub ident: IdentifierExt<'s>,
+    pub ident: NotFuncType<'s>,
     pub args: Vec<FuncArg<'s>>,
 }
 
