@@ -137,7 +137,7 @@ mod tests {
                     modifiers: VarModifierSet::default(),
                     var_type: Some(Type::NotFunc(NotFuncType {
                         name: "List",
-                        type_args: vec![NotFuncType::name("int")],
+                        type_args: vec![Type::NotFunc(NotFuncType::name("int"))],
                         is_nullable: false
                     })),
                     name: "xs",

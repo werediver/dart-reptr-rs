@@ -151,16 +151,16 @@ mod tests {
                             NotFuncType {
                                 name: "A",
                                 type_args: vec![
-                                    NotFuncType {
+                                    Type::NotFunc(NotFuncType {
                                         name: "Future",
-                                        type_args: vec![NotFuncType::name("void")],
+                                        type_args: vec![Type::NotFunc(NotFuncType::name("void"))],
                                         is_nullable: false,
-                                    },
-                                    NotFuncType {
+                                    }),
+                                    Type::NotFunc(NotFuncType {
                                         name: "B",
                                         type_args: Vec::default(),
                                         is_nullable: true,
-                                    },
+                                    }),
                                 ],
                                 is_nullable: false,
                             },
@@ -178,12 +178,12 @@ mod tests {
                         return_type: Type::NotFunc(NotFuncType {
                             name: "Map",
                             type_args: vec![
-                                NotFuncType::name("String"),
-                                NotFuncType {
+                                Type::NotFunc(NotFuncType::name("String")),
+                                Type::NotFunc(NotFuncType {
                                     name: "Object",
                                     type_args: Vec::new(),
                                     is_nullable: true,
-                                }
+                                })
                             ],
                             is_nullable: false,
                         }),

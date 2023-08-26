@@ -3,7 +3,6 @@ use nom::{
     bytes::complete::tag,
     combinator::{cut, opt},
     error::{context, ContextError, ParseError},
-    multi::separated_list0,
     sequence::{pair, preceded, terminated, tuple},
     Parser,
 };
@@ -11,7 +10,7 @@ use nom::{
 use crate::dart::func_call::{FuncArg, FuncCall};
 
 use super::{
-    common::spbr,
+    common::{sep_list, spbr, SepMode},
     expr::expr,
     ty::{identifier, not_func_type},
     PResult,
@@ -37,7 +36,12 @@ where
         preceded(
             pair(tag("("), opt(spbr)),
             cut(terminated(
-                separated_list0(pair(tag(","), opt(spbr)), terminated(func_arg, opt(spbr))),
+                sep_list(
+                    0,
+                    SepMode::AllowTrailing,
+                    pair(tag(","), opt(spbr)),
+                    terminated(func_arg, opt(spbr)),
+                ),
                 tag(")"),
             )),
         ),
@@ -65,7 +69,7 @@ where
 mod tests {
     use nom::error::VerboseError;
 
-    use crate::dart::{func_call::FuncArg, Expr, NotFuncType};
+    use crate::dart::{func_call::FuncArg, ty::Type, Expr, NotFuncType};
 
     use super::*;
 
@@ -92,7 +96,7 @@ mod tests {
                 FuncCall {
                     ident: NotFuncType {
                         name: "f",
-                        type_args: vec![NotFuncType::name("int")],
+                        type_args: vec![Type::NotFunc(NotFuncType::name("int"))],
                         is_nullable: false
                     },
                     args: vec![

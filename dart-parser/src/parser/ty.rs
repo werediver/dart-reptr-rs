@@ -3,7 +3,7 @@ use nom::{
     bytes::complete::{tag, take_while, take_while_m_n},
     combinator::{cut, fail, opt, recognize, success},
     error::{context, ContextError, ParseError},
-    multi::{separated_list0, separated_list1},
+    multi::separated_list1,
     sequence::{pair, preceded, terminated, tuple},
     Parser,
 };
@@ -11,10 +11,14 @@ use nom::{
 use crate::dart::{
     func_like::{FuncParams, FuncParamsExtra},
     ty::{FuncType, FuncTypeParam, Type},
-    MaybeRequired, NotFuncType,
+    MaybeRequired, NotFuncType, TypeParam,
 };
 
-use super::{common::spbr, PResult};
+use super::{
+    common::{sep_list, spbr, SepMode},
+    type_params::type_params,
+    PResult,
+};
 
 pub fn identifier<'s, E>(s: &'s str) -> PResult<&str, E>
 where
@@ -85,7 +89,7 @@ where
     .parse(s)
 }
 
-pub fn type_args<'s, E>(s: &'s str) -> PResult<Vec<NotFuncType>, E>
+pub fn type_args<'s, E>(s: &'s str) -> PResult<Vec<Type>, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
@@ -94,7 +98,7 @@ where
         preceded(
             pair(tag("<"), opt(spbr)),
             cut(terminated(
-                separated_list1(tuple((opt(spbr), tag(","), opt(spbr))), not_func_type),
+                separated_list1(tuple((opt(spbr), tag(","), opt(spbr))), ty),
                 pair(opt(spbr), tag(">")),
             )),
         ),
@@ -108,12 +112,21 @@ where
     context("func_type", |s| {
         let (s, (return_type, fn_chain)) = tuple((
             opt(terminated(not_func_type, opt(spbr))),
-            separated_list1(
+            sep_list(
+                1,
+                SepMode::NoTrailing,
                 opt(spbr),
-                pair(
-                    preceded(pair(tag("Function"), opt(spbr)), func_type_params),
+                tuple((
+                    preceded(
+                        pair(tag("Function"), opt(spbr)),
+                        alt((
+                            terminated(type_params, opt(spbr)),
+                            success(()).map(|_| Vec::new()),
+                        )),
+                    ),
+                    func_type_params,
                     alt((preceded(opt(spbr), tag("?")).map(|_| true), success(false))),
-                ),
+                )),
             ),
         ))(s)?;
 
@@ -127,13 +140,14 @@ where
 
 fn build_func_type<'s>(
     return_type: Option<NotFuncType<'s>>,
-    fn_chain: Vec<(FuncParams<FuncTypeParam<'s>>, bool)>,
+    fn_chain: Vec<(Vec<TypeParam<'s>>, FuncParams<FuncTypeParam<'s>>, bool)>,
 ) -> Option<Box<FuncType<'s>>> {
     let ty = fn_chain.into_iter().fold(
         Type::NotFunc(return_type.unwrap_or(NotFuncType::dynamic())),
-        |ty, (fn_params, is_nullable)| {
+        |ty, (type_params, fn_params, is_nullable)| {
             Type::func(FuncType {
                 return_type: ty,
+                type_params,
                 params: fn_params,
                 is_nullable,
             })
@@ -177,12 +191,11 @@ fn func_type_params_pos_req<'s, E>(s: &'s str) -> PResult<Vec<FuncTypeParam>, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
-    terminated(
-        separated_list0(
-            pair(tag(","), opt(spbr)),
-            terminated(func_type_param_pos, opt(spbr)),
-        ),
-        opt(pair(tag(","), opt(spbr))),
+    sep_list(
+        0,
+        SepMode::AllowTrailing,
+        pair(tag(","), opt(spbr)),
+        terminated(func_type_param_pos, opt(spbr)),
     )(s)
 }
 
@@ -193,11 +206,13 @@ where
     preceded(
         pair(tag("["), opt(spbr)),
         cut(terminated(
-            separated_list0(
+            sep_list(
+                0,
+                SepMode::AllowTrailing,
                 pair(tag(","), opt(spbr)),
                 terminated(func_type_param_pos, opt(spbr)),
             ),
-            pair(opt(pair(tag(","), opt(spbr))), tag("]")),
+            tag("]"),
         )),
     )(s)
 }
@@ -230,11 +245,13 @@ where
         preceded(
             pair(tag("{"), opt(spbr)),
             cut(terminated(
-                separated_list0(
+                sep_list(
+                    0,
+                    SepMode::AllowTrailing,
                     pair(tag(","), opt(spbr)),
                     terminated(func_type_param_named, opt(spbr)),
                 ),
-                tuple((opt(pair(tag(","), opt(spbr))), tag("}"))),
+                tag("}"),
             )),
         ),
     )(s)
@@ -277,14 +294,33 @@ mod tests {
     use super::*;
 
     #[test]
-    fn identifier_ext_test() {
+    fn type_args_test() {
+        assert_eq!(
+            type_args::<VerboseError<_>>("<void Function()>x"),
+            Ok((
+                "x",
+                vec![Type::func(FuncType {
+                    return_type: Type::NotFunc(NotFuncType::void()),
+                    type_params: Vec::new(),
+                    params: FuncParams::default(),
+                    is_nullable: false,
+                })]
+            ))
+        );
+    }
+
+    #[test]
+    fn type_generic_test() {
         assert_eq!(
             not_func_type::<VerboseError<_>>("Map<String, Object>? "),
             Ok((
                 " ",
                 NotFuncType {
                     name: "Map",
-                    type_args: vec![NotFuncType::name("String"), NotFuncType::name("Object"),],
+                    type_args: vec![
+                        Type::NotFunc(NotFuncType::name("String")),
+                        Type::NotFunc(NotFuncType::name("Object")),
+                    ],
                     is_nullable: true,
                 }
             ))
@@ -292,7 +328,7 @@ mod tests {
     }
 
     #[test]
-    fn identifier_ext_nested_test() {
+    fn type_generic_nested_test() {
         assert_eq!(
             not_func_type::<VerboseError<_>>("Map<String, List<int>> "),
             Ok((
@@ -300,12 +336,12 @@ mod tests {
                 NotFuncType {
                     name: "Map",
                     type_args: vec![
-                        NotFuncType::name("String"),
-                        NotFuncType {
+                        Type::NotFunc(NotFuncType::name("String")),
+                        Type::NotFunc(NotFuncType {
                             name: "List",
-                            type_args: vec![NotFuncType::name("int")],
+                            type_args: vec![Type::NotFunc(NotFuncType::name("int"))],
                             is_nullable: false,
-                        }
+                        })
                     ],
                     is_nullable: false,
                 }
@@ -316,11 +352,12 @@ mod tests {
     #[test]
     fn func_type_simple() {
         assert_eq!(
-            func_type::<VerboseError<_>>("void Function() x"),
+            func_type::<VerboseError<_>>("void Function()x"),
             Ok((
-                " x",
+                "x",
                 Box::new(FuncType {
                     return_type: Type::NotFunc(NotFuncType::name("void")),
+                    type_params: Vec::new(),
                     params: FuncParams::default(),
                     is_nullable: false,
                 })
@@ -336,9 +373,35 @@ mod tests {
                 " x",
                 Box::new(FuncType {
                     return_type: Type::NotFunc(NotFuncType::name("void")),
+                    type_params: Vec::new(),
                     params: FuncParams {
                         positional_req: vec![FuncTypeParam {
                             param_type: Type::NotFunc(NotFuncType::name("int")),
+                            name: None
+                        }],
+                        extra: None,
+                    },
+                    is_nullable: false,
+                })
+            ))
+        );
+    }
+
+    #[test]
+    fn func_type_generic_type() {
+        assert_eq!(
+            func_type::<VerboseError<_>>("T Function<T>(T) x"),
+            Ok((
+                " x",
+                Box::new(FuncType {
+                    return_type: Type::NotFunc(NotFuncType::name("T")),
+                    type_params: vec![TypeParam {
+                        name: "T",
+                        extends: None
+                    }],
+                    params: FuncParams {
+                        positional_req: vec![FuncTypeParam {
+                            param_type: Type::NotFunc(NotFuncType::name("T")),
                             name: None
                         }],
                         extra: None,
@@ -357,12 +420,76 @@ mod tests {
                 " x",
                 Box::new(FuncType {
                     return_type: Type::NotFunc(NotFuncType::name("void")),
+                    type_params: Vec::new(),
                     params: FuncParams {
                         positional_req: vec![FuncTypeParam {
                             param_type: Type::NotFunc(NotFuncType::name("int")),
                             name: Some("x"),
                         }],
                         extra: None,
+                    },
+                    is_nullable: true
+                })
+            ))
+        );
+    }
+
+    #[test]
+    fn func_type_arg_named() {
+        assert_eq!(
+            func_type::<VerboseError<_>>("void Function({int? x})? x"),
+            Ok((
+                " x",
+                Box::new(FuncType {
+                    return_type: Type::NotFunc(NotFuncType::name("void")),
+                    type_params: Vec::new(),
+                    params: FuncParams {
+                        positional_req: Vec::new(),
+                        extra: Some(FuncParamsExtra::Named(vec![MaybeRequired::new(
+                            false,
+                            FuncTypeParam {
+                                param_type: Type::NotFunc(NotFuncType {
+                                    name: "int",
+                                    type_args: Vec::new(),
+                                    is_nullable: true
+                                }),
+                                name: Some("x"),
+                            }
+                        )])),
+                    },
+                    is_nullable: true
+                })
+            ))
+        );
+    }
+
+    #[test]
+    fn func_type_arg_named_longer() {
+        assert_eq!(
+            func_type::<VerboseError<_>>("void Function({List<void Function()>? funcs})? x"),
+            Ok((
+                " x",
+                Box::new(FuncType {
+                    return_type: Type::NotFunc(NotFuncType::name("void")),
+                    type_params: Vec::new(),
+                    params: FuncParams {
+                        positional_req: Vec::new(),
+                        extra: Some(FuncParamsExtra::Named(vec![MaybeRequired::new(
+                            false,
+                            FuncTypeParam {
+                                param_type: Type::NotFunc(NotFuncType {
+                                    name: "List",
+                                    type_args: vec![Type::func(FuncType {
+                                        return_type: Type::NotFunc(NotFuncType::void()),
+                                        type_params: Vec::new(),
+                                        params: FuncParams::default(),
+                                        is_nullable: false,
+                                    })],
+                                    is_nullable: true
+                                }),
+                                name: Some("funcs"),
+                            }
+                        )])),
                     },
                     is_nullable: true
                 })
@@ -380,12 +507,15 @@ mod tests {
                     return_type: Type::func(FuncType {
                         return_type: Type::func(FuncType {
                             return_type: Type::NotFunc(NotFuncType::name("void")),
+                            type_params: Vec::new(),
                             params: FuncParams::default(),
                             is_nullable: false,
                         }),
+                        type_params: Vec::new(),
                         params: FuncParams::default(),
                         is_nullable: true,
                     }),
+                    type_params: Vec::new(),
                     params: FuncParams::default(),
                     is_nullable: false,
                 })

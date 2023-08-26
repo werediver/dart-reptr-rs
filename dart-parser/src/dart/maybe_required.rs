@@ -1,4 +1,3 @@
-use core::ops::Deref;
 use std::fmt::Debug;
 
 pub struct MaybeRequired<T> {
@@ -26,10 +25,8 @@ impl<T> MaybeRequired<T> {
     }
 }
 
-impl<T> Deref for MaybeRequired<T> {
-    type Target = T;
-
-    fn deref(&self) -> &T {
+impl<T> AsRef<T> for MaybeRequired<T> {
+    fn as_ref(&self) -> &T {
         &self.value
     }
 }

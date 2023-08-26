@@ -3,7 +3,7 @@ use nom::{
     bytes::complete::tag,
     combinator::{cut, opt, success, value},
     error::{context, ContextError, ParseError},
-    multi::{fold_many0, separated_list0},
+    multi::fold_many0,
     sequence::{pair, preceded, terminated, tuple},
     Parser,
 };
@@ -18,7 +18,7 @@ use crate::dart::{
 };
 
 use super::{
-    common::spbr,
+    common::{sep_list, spbr, SepMode},
     expr::block,
     expr::expr,
     ty::{identifier, ty},
@@ -181,12 +181,11 @@ fn func_params_pos_req<'s, E>(s: &'s str) -> PResult<Vec<FuncParam>, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
-    terminated(
-        separated_list0(
-            pair(tag(","), opt(spbr)),
-            terminated(func_param_pos, opt(spbr)),
-        ),
-        opt(pair(tag(","), opt(spbr))),
+    sep_list(
+        0,
+        SepMode::AllowTrailing,
+        pair(tag(","), opt(spbr)),
+        terminated(func_param_pos, opt(spbr)),
     )(s)
 }
 
@@ -197,11 +196,13 @@ where
     preceded(
         pair(tag("["), opt(spbr)),
         cut(terminated(
-            separated_list0(
+            sep_list(
+                0,
+                SepMode::AllowTrailing,
                 pair(tag(","), opt(spbr)),
                 terminated(func_param_pos, opt(spbr)),
             ),
-            pair(opt(pair(tag(","), opt(spbr))), tag("]")),
+            tag("]"),
         )),
     )(s)
 }
@@ -253,11 +254,13 @@ where
         preceded(
             pair(tag("{"), opt(spbr)),
             cut(terminated(
-                separated_list0(
+                sep_list(
+                    0,
+                    SepMode::AllowTrailing,
                     pair(tag(","), opt(spbr)),
                     terminated(func_param_named, opt(spbr)),
                 ),
-                tuple((opt(pair(tag(","), opt(spbr))), tag("}"))),
+                tag("}"),
             )),
         ),
     )(s)
@@ -472,7 +475,7 @@ mod tests {
                     modifiers: FuncModifierSet::default(),
                     return_type: Type::NotFunc(NotFuncType {
                         name: "Iterable",
-                        type_args: vec![NotFuncType::name("int")],
+                        type_args: vec![Type::NotFunc(NotFuncType::name("int"))],
                         is_nullable: false
                     }),
                     name: "f",
@@ -500,7 +503,7 @@ mod tests {
                     modifiers: FuncModifierSet::from_iter([FuncModifier::Static]),
                     return_type: Type::NotFunc(NotFuncType {
                         name: "List",
-                        type_args: vec![NotFuncType::name("String")],
+                        type_args: vec![Type::NotFunc(NotFuncType::name("String"))],
                         is_nullable: false,
                     }),
                     name: "f",
@@ -528,7 +531,7 @@ mod tests {
                     modifiers: FuncModifierSet::from_iter([FuncModifier::Static]),
                     return_type: Type::NotFunc(NotFuncType {
                         name: "Future",
-                        type_args: vec![NotFuncType::name("String")],
+                        type_args: vec![Type::NotFunc(NotFuncType::name("String"))],
                         is_nullable: false,
                     }),
                     name: "f",
