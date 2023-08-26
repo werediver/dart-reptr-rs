@@ -8,7 +8,7 @@ use nom::{
     sequence::{pair, preceded, terminated, tuple},
 };
 
-use super::{common::skip_many0, PResult};
+use super::{common::skip_many0, expr::block, ty::identifier, PResult};
 
 /// Parse a single- or double-quoted single- or multiline string literal.
 ///
@@ -27,9 +27,10 @@ where
         pair(tag("\"\"\""), opt(char('\n'))),
         cut(terminated(
             recognize(skip_many0(alt((
-                is_not("\\\""),
+                is_not("$\\\""),
                 terminated(tag("\""), not(tag("\"\""))),
                 escape_seq,
+                interpolation_expr,
             )))),
             tag("\"\"\""),
         )),
@@ -38,9 +39,10 @@ where
         pair(tag("'''"), opt(char('\n'))),
         cut(terminated(
             recognize(skip_many0(alt((
-                is_not("\\'"),
+                is_not("$\\'"),
                 terminated(tag("'"), not(tag("''"))),
                 escape_seq,
+                interpolation_expr,
             )))),
             tag("'''"),
         )),
@@ -48,14 +50,22 @@ where
     let dq = preceded(
         tag("\""),
         cut(terminated(
-            recognize(skip_many0(alt((is_not("\\\"\r\n"), escape_seq)))),
+            recognize(skip_many0(alt((
+                is_not("$\\\"\r\n"),
+                escape_seq,
+                interpolation_expr,
+            )))),
             tag("\""),
         )),
     );
     let sq = preceded(
         tag("'"),
         cut(terminated(
-            recognize(skip_many0(alt((is_not("\\'\r\n"), escape_seq)))),
+            recognize(skip_many0(alt((
+                is_not("$\\'\r\n"),
+                escape_seq,
+                interpolation_expr,
+            )))),
             tag("'"),
         )),
     );
@@ -68,7 +78,7 @@ where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
     alt((
-        recognize(pair(char('\\'), one_of("nrfbtv'\""))),
+        recognize(pair(char('\\'), one_of("nrfbtv$'\""))),
         recognize(pair(tag("\\x"), hex_digits(2, 2))),
         recognize(tuple((tag("\\u{"), hex_digits(1, 6), char('}')))),
         recognize(pair(tag("\\u"), hex_digits(4, 4))),
@@ -80,6 +90,16 @@ where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
     recognize(many_m_n(m, n, one_of("0123456789ABCDEFabcdef")))
+}
+
+fn interpolation_expr<'s, E>(s: &'s str) -> PResult<&str, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
+    context(
+        "interpolation_expr",
+        recognize(preceded(tag("$"), alt((identifier, block)))),
+    )(s)
 }
 
 #[cfg(test)]
@@ -98,6 +118,14 @@ mod tests {
         assert_eq!(
             string::<VerboseError<_>>(r#"'as${df}"gh"'x"#),
             Ok(("x", r#"as${df}"gh""#))
+        );
+    }
+
+    #[test]
+    fn string_interpolation_test() {
+        assert_eq!(
+            string::<VerboseError<_>>(r#""ab${f("\"")}cd"x"#),
+            Ok(("x", r#"ab${f("\"")}cd"#))
         );
     }
 }

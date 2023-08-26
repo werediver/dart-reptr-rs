@@ -27,16 +27,22 @@ where
     context(
         "extension",
         tuple((
-            terminated(tag("extension"), spbr),
-            opt(terminated(identifier, opt(spbr))),
-            opt(terminated(type_params, opt(spbr))),
-            terminated(tag("on"), spbr),
+            alt((
+                tuple((tag("extension"), spbr, tag("on"), spbr)).map(|_| (None, Vec::new())),
+                tuple((
+                    terminated(tag("extension"), spbr),
+                    terminated(identifier, opt(spbr)),
+                    opt(terminated(type_params, opt(spbr))),
+                    terminated(tag("on"), spbr),
+                ))
+                .map(|(_, name, type_params, _)| (Some(name), type_params.unwrap_or(Vec::new()))),
+            )),
             terminated(ty, opt(spbr)),
             extension_body,
         ))
-        .map(|(_, name, type_params, _, on, body)| Extension {
+        .map(|((name, type_params), on, body)| Extension {
             name,
-            type_params: type_params.unwrap_or(Vec::new()),
+            type_params,
             on,
             body,
         }),
@@ -69,4 +75,53 @@ where
         func_like.map(ExtensionMember::FuncLike),
         var.map(ExtensionMember::Var),
     ))(s)
+}
+
+#[cfg(test)]
+mod tests {
+    use nom::error::VerboseError;
+
+    use crate::dart::{ty::Type, NotFuncType};
+
+    use super::*;
+
+    #[test]
+    fn extension_named() {
+        assert_eq!(
+            extension::<VerboseError<_>>("extension X on Y {}x"),
+            Ok((
+                "x",
+                Extension {
+                    name: Some("X"),
+                    type_params: Vec::new(),
+                    on: Type::NotFunc(NotFuncType {
+                        name: "Y",
+                        type_args: Vec::new(),
+                        is_nullable: false
+                    }),
+                    body: Vec::new(),
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn extension_unnamed() {
+        assert_eq!(
+            extension::<VerboseError<_>>("extension on Y {}x"),
+            Ok((
+                "x",
+                Extension {
+                    name: None,
+                    type_params: Vec::new(),
+                    on: Type::NotFunc(NotFuncType {
+                        name: "Y",
+                        type_args: Vec::new(),
+                        is_nullable: false
+                    }),
+                    body: Vec::new(),
+                }
+            ))
+        );
+    }
 }

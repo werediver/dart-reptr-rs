@@ -226,7 +226,7 @@ mod tests {
                     NotFuncType::name("Salt"),
                     NotFuncType {
                         name: "Pepper",
-                        type_args: vec![NotFuncType::name("Black")],
+                        type_args: vec![Type::NotFunc(NotFuncType::name("Black"))],
                         is_nullable: false,
                     }
                 ]
@@ -318,17 +318,17 @@ mod tests {
                     type_params: Vec::new(),
                     extends: Some(NotFuncType {
                         name: "Base",
-                        type_args: vec![NotFuncType::name("T")],
+                        type_args: vec![Type::NotFunc(NotFuncType::name("T"))],
                         is_nullable: false,
                     }),
                     with: Vec::new(),
                     implements: vec![NotFuncType {
                         name: "A",
-                        type_args: vec![NotFuncType {
+                        type_args: vec![Type::NotFunc(NotFuncType {
                             name: "Future",
-                            type_args: vec![NotFuncType::name("void")],
+                            type_args: vec![Type::NotFunc(NotFuncType::name("void"))],
                             is_nullable: false,
-                        }],
+                        })],
                         is_nullable: false,
                     }],
                     body: Vec::new(),

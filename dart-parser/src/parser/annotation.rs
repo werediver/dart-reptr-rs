@@ -2,7 +2,7 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     combinator::cut,
-    error::{ContextError, ParseError},
+    error::{context, ContextError, ParseError},
     sequence::preceded,
     Parser,
 };
@@ -15,12 +15,15 @@ pub fn annotation<'s, E>(s: &'s str) -> PResult<Annotation, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
-    preceded(
-        tag("@"),
-        cut(alt((
-            func_call.map(Annotation::FuncCall),
-            identifier.map(Annotation::Ident),
-        ))),
+    context(
+        "annotation",
+        preceded(
+            tag("@"),
+            cut(alt((
+                func_call.map(Annotation::FuncCall),
+                identifier.map(Annotation::Ident),
+            ))),
+        ),
     )(s)
 }
 
