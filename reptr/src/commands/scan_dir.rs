@@ -1,4 +1,7 @@
-use std::{env, io};
+use std::{
+    env, io,
+    time::{Duration, Instant},
+};
 
 use crate::common::{is_dart_pkg, try_load, ErrorContext, ReadDirExt};
 
@@ -48,8 +51,10 @@ pub fn scan_dir(dir_path: Option<std::path::PathBuf>, options: Options) -> io::R
         },
     );
 
-    let mut success_count = 0;
-    let mut total_count = 0;
+    let mut total_count = 0usize;
+    let mut parsed_count = 0usize;
+    let mut parsed_duration = Duration::ZERO;
+    let mut parsed_size = 0usize;
 
     for entry in read_dir_ext {
         let result = entry
@@ -66,9 +71,12 @@ pub fn scan_dir(dir_path: Option<std::path::PathBuf>, options: Options) -> io::R
 
                 let rel_path = path.strip_prefix(&dir).unwrap();
 
+                let t = Instant::now();
                 match dart_parser::parse(&source) {
                     Ok(_) => {
-                        success_count += 1;
+                        parsed_duration += Instant::now() - t;
+                        parsed_size += source.len();
+                        parsed_count += 1;
                         println(format!("[PARSED] [{context}] {rel_path:?}"));
                     }
                     Err(e) => {
@@ -83,8 +91,14 @@ pub fn scan_dir(dir_path: Option<std::path::PathBuf>, options: Options) -> io::R
     }
 
     println(format!(
-        "\nSuccess / total: {success_count} / {total_count} ({:.4})",
-        success_count as f64 / total_count as f64
+        "\nParsed {parsed_count} out of {total_count} files, {:.4}",
+        parsed_count as f64 / total_count as f64
+    ));
+    println(format!(
+        "Parsed {:.2} MiB in {:.2} s, {:.2} MiB/s",
+        parsed_size as f64 / (1024.0 * 1024.0),
+        parsed_duration.as_secs_f64(),
+        parsed_size as f64 / parsed_duration.as_secs_f64() / (1024.0 * 1024.0)
     ));
 
     Ok(())
