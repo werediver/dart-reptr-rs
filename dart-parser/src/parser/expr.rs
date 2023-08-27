@@ -8,7 +8,7 @@ use nom::{
 
 use crate::{dart::Expr, parser::common::spbr};
 
-use super::{common::uncut, string::string, ty::identifier, PResult};
+use super::{comment, common::uncut, string::string, ty::identifier, PResult};
 
 use nom::{
     bytes::complete::{is_not, tag},
@@ -63,7 +63,7 @@ where
     )
 }
 
-const SCOPE_STOP_CHARS: &str = "<>()[]{}='\"";
+const SCOPE_STOP_CHARS: &str = "<>()[]{}=/r'\"";
 
 fn scope_body<'s, E>(s: &'s str) -> PResult<&'s str, E>
 where
@@ -76,7 +76,7 @@ fn expr_body<'s, E>(s: &'s str) -> PResult<&'s str, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
-    const EXPR_STOP_CHARS: &str = "<>()[]{}='\",;";
+    const EXPR_STOP_CHARS: &str = "<>()[]{}=/r'\",;";
     debug_assert!(EXPR_STOP_CHARS.starts_with(SCOPE_STOP_CHARS));
 
     recognize(skip_many1(alt((is_not(EXPR_STOP_CHARS), body_item))))(s)
@@ -92,7 +92,10 @@ where
         uncut(recognize(type_args)),
         tag("<"), // LT/LTE
         tag(">"), // GT/GTE
+        recognize(comment),
+        tag("/"),
         string,
+        tag("r"),
         any_scope,
     ))(s)
 }

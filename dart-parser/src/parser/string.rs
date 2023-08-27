@@ -70,7 +70,42 @@ where
         )),
     );
 
-    context("string", alt((tdq, tsq, dq, sq)))(s)
+    let rtdq = preceded(
+        pair(tag("r\"\"\""), opt(char('\n'))),
+        cut(terminated(
+            recognize(skip_many0(alt((
+                is_not("\""),
+                terminated(tag("\""), not(tag("\"\""))),
+            )))),
+            tag("\"\"\""),
+        )),
+    );
+    let rtsq = preceded(
+        pair(tag("r'''"), opt(char('\n'))),
+        cut(terminated(
+            recognize(skip_many0(alt((
+                is_not("'"),
+                terminated(tag("'"), not(tag("''"))),
+            )))),
+            tag("'''"),
+        )),
+    );
+    let rdq = preceded(
+        tag("r\""),
+        cut(terminated(
+            recognize(skip_many0(alt((is_not("\"\r\n"),)))),
+            tag("\""),
+        )),
+    );
+    let rsq = preceded(
+        tag("r'"),
+        cut(terminated(
+            recognize(skip_many0(alt((is_not("'\r\n"),)))),
+            tag("'"),
+        )),
+    );
+
+    context("string", alt((tdq, tsq, dq, sq, rtdq, rtsq, rdq, rsq)))(s)
 }
 
 fn escape_seq<'s, E>(s: &'s str) -> PResult<&str, E>
@@ -78,7 +113,7 @@ where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
     alt((
-        recognize(pair(char('\\'), one_of("nrfbtv$'\""))),
+        recognize(pair(char('\\'), one_of("\\nrfbtv$'\""))),
         recognize(pair(tag("\\x"), hex_digits(2, 2))),
         recognize(tuple((tag("\\u{"), hex_digits(1, 6), char('}')))),
         recognize(pair(tag("\\u"), hex_digits(4, 4))),
