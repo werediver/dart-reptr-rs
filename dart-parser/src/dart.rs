@@ -10,6 +10,7 @@ pub mod func_like;
 pub mod maybe_required;
 pub mod ty;
 pub mod type_param;
+pub mod typedef;
 pub mod var;
 
 pub use annotation::Annotation;
@@ -24,6 +25,7 @@ pub use func_like::FuncLike;
 pub use maybe_required::MaybeRequired;
 pub use ty::NotFuncType;
 pub use type_param::TypeParam;
+pub use typedef::TypeDef;
 pub use var::Var;
 
 #[derive(PartialEq, Eq, Debug)]
@@ -31,6 +33,7 @@ pub enum Dart<'s> {
     Comment(Comment<'s>),
     Directive(Directive<'s>),
     Annotation(Annotation<'s>),
+    TypeDef(TypeDef<'s>),
     Var(Var<'s>),
     FuncLike(FuncLike<'s>),
     Class(Class<'s>),

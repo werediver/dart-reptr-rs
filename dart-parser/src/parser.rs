@@ -11,6 +11,7 @@ mod func_like;
 mod string;
 mod ty;
 mod type_params;
+mod typedef;
 mod var;
 
 use std::str;
@@ -28,7 +29,7 @@ use crate::{dart::*, parser::class::class};
 
 use self::{
     annotation::annotation, comment::comment, common::spbr, directive::directive, enum_ty::enum_ty,
-    extension::extension, func_like::func_like, var::var,
+    extension::extension, func_like::func_like, typedef::typedef, var::var,
 };
 
 type PResult<'s, T, E> = Result<(&'s str, T), nom::Err<E>>;
@@ -45,6 +46,7 @@ where
                     comment.map(Dart::Comment),
                     directive.map(Dart::Directive),
                     annotation.map(Dart::Annotation),
+                    typedef.map(Dart::TypeDef),
                     var.map(Dart::Var),
                     func_like.map(Dart::FuncLike),
                     class.map(Dart::Class),
