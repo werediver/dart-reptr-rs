@@ -64,7 +64,11 @@ where
 {
     context(
         "ty",
-        alt((func_type.map(Type::Func), not_func_type.map(Type::NotFunc))),
+        alt((
+            func_type.map(Type::Func),
+            not_func_type.map(Type::NotFunc),
+            tuple_ty.map(Type::Tuple),
+        )),
     )(s)
 }
 
@@ -157,6 +161,7 @@ fn build_func_type<'s>(
     match ty {
         Type::Func(fn_type) => Some(fn_type),
         Type::NotFunc(_) => None,
+        Type::Tuple(_) => None,
     }
 }
 
@@ -280,6 +285,27 @@ where
         }),
     )
     .parse(s)
+}
+
+fn tuple_ty<'s, E>(s: &'s str) -> PResult<Vec<Type>, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
+    context(
+        "tuple",
+        preceded(
+            pair(tag("("), opt(spbr)),
+            terminated(
+                sep_list(
+                    0,
+                    SepMode::AllowTrailing,
+                    pair(tag(","), opt(spbr)),
+                    terminated(ty, opt(spbr)),
+                ),
+                tag(")"),
+            ),
+        ),
+    )(s)
 }
 
 #[cfg(test)]
