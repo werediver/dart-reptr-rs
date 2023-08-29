@@ -45,12 +45,12 @@ pub enum FuncModifier {
 }
 
 #[derive(PartialEq, Eq, Debug)]
-pub struct FuncParams<Param> {
-    pub positional_req: Vec<Param>,
-    pub extra: Option<FuncParamsExtra<Param>>,
+pub struct FuncParams<ParamPos, ParamNamed = ParamPos> {
+    pub positional_req: Vec<ParamPos>,
+    pub extra: Option<FuncParamsExtra<ParamPos, ParamNamed>>,
 }
 
-impl<T> Default for FuncParams<T> {
+impl<T, U> Default for FuncParams<T, U> {
     fn default() -> Self {
         Self {
             positional_req: Vec::new(),
@@ -60,9 +60,9 @@ impl<T> Default for FuncParams<T> {
 }
 
 #[derive(PartialEq, Eq, Debug)]
-pub enum FuncParamsExtra<Param> {
-    PositionalOpt(Vec<Param>),
-    Named(Vec<MaybeRequired<Param>>),
+pub enum FuncParamsExtra<ParamPos, ParamNamed = ParamPos> {
+    PositionalOpt(Vec<ParamPos>),
+    Named(Vec<MaybeRequired<ParamNamed>>),
 }
 
 #[derive(PartialEq, Eq, Debug)]

@@ -10,7 +10,7 @@ use nom::{
 
 use crate::dart::{
     func_like::{FuncParams, FuncParamsExtra},
-    ty::{FuncType, FuncTypeParam, Type},
+    ty::{FuncType, FuncTypeParamNamed, FuncTypeParamPos, Type},
     MaybeRequired, NotFuncType, TypeParam,
 };
 
@@ -144,7 +144,11 @@ where
 
 fn build_func_type<'s>(
     return_type: Option<NotFuncType<'s>>,
-    fn_chain: Vec<(Vec<TypeParam<'s>>, FuncParams<FuncTypeParam<'s>>, bool)>,
+    fn_chain: Vec<(
+        Vec<TypeParam<'s>>,
+        FuncParams<FuncTypeParamPos<'s>, FuncTypeParamNamed<'s>>,
+        bool,
+    )>,
 ) -> Option<Box<FuncType<'s>>> {
     let ty = fn_chain.into_iter().fold(
         Type::NotFunc(return_type.unwrap_or(NotFuncType::dynamic())),
@@ -165,7 +169,9 @@ fn build_func_type<'s>(
     }
 }
 
-fn func_type_params<'s, E>(s: &'s str) -> PResult<FuncParams<FuncTypeParam>, E>
+fn func_type_params<'s, E>(
+    s: &'s str,
+) -> PResult<FuncParams<FuncTypeParamPos<'s>, FuncTypeParamNamed<'s>>, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
@@ -192,7 +198,7 @@ where
     .parse(s)
 }
 
-fn func_type_params_pos_req<'s, E>(s: &'s str) -> PResult<Vec<FuncTypeParam>, E>
+fn func_type_params_pos_req<'s, E>(s: &'s str) -> PResult<Vec<FuncTypeParamPos>, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
@@ -204,7 +210,7 @@ where
     )(s)
 }
 
-fn func_type_params_pos_opt<'s, E>(s: &'s str) -> PResult<Vec<FuncTypeParam>, E>
+fn func_type_params_pos_opt<'s, E>(s: &'s str) -> PResult<Vec<FuncTypeParamPos>, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
@@ -222,7 +228,7 @@ where
     )(s)
 }
 
-fn func_type_param_pos<'s, E>(s: &'s str) -> PResult<FuncTypeParam, E>
+fn func_type_param_pos<'s, E>(s: &'s str) -> PResult<FuncTypeParamPos, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
@@ -237,11 +243,11 @@ where
             // Just a type
             terminated(ty, opt(spbr)).map(|ty| (ty, None)),
         ))
-        .map(|(param_type, name)| FuncTypeParam { param_type, name }),
+        .map(|(param_type, name)| FuncTypeParamPos { param_type, name }),
     )(s)
 }
 
-fn func_type_params_named<'s, E>(s: &'s str) -> PResult<Vec<MaybeRequired<FuncTypeParam>>, E>
+fn func_type_params_named<'s, E>(s: &'s str) -> PResult<Vec<MaybeRequired<FuncTypeParamNamed>>, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
@@ -262,7 +268,7 @@ where
     )(s)
 }
 
-fn func_type_param_named<'s, E>(s: &'s str) -> PResult<MaybeRequired<FuncTypeParam>, E>
+fn func_type_param_named<'s, E>(s: &'s str) -> PResult<MaybeRequired<FuncTypeParamNamed>, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
@@ -275,13 +281,7 @@ where
             terminated(identifier, opt(spbr)),
         ))
         .map(|(req, param_type, name)| {
-            MaybeRequired::new(
-                req.is_some(),
-                FuncTypeParam {
-                    param_type,
-                    name: Some(name),
-                },
-            )
+            MaybeRequired::new(req.is_some(), FuncTypeParamNamed { param_type, name })
         }),
     )
     .parse(s)
@@ -314,7 +314,7 @@ mod tests {
 
     use crate::dart::{
         func_like::FuncParams,
-        ty::{FuncTypeParam, Type},
+        ty::{FuncTypeParamPos, Type},
     };
 
     use super::*;
@@ -401,7 +401,7 @@ mod tests {
                     return_type: Type::NotFunc(NotFuncType::name("void")),
                     type_params: Vec::new(),
                     params: FuncParams {
-                        positional_req: vec![FuncTypeParam {
+                        positional_req: vec![FuncTypeParamPos {
                             param_type: Type::NotFunc(NotFuncType::name("int")),
                             name: None
                         }],
@@ -426,7 +426,7 @@ mod tests {
                         extends: None
                     }],
                     params: FuncParams {
-                        positional_req: vec![FuncTypeParam {
+                        positional_req: vec![FuncTypeParamPos {
                             param_type: Type::NotFunc(NotFuncType::name("T")),
                             name: None
                         }],
@@ -448,7 +448,7 @@ mod tests {
                     return_type: Type::NotFunc(NotFuncType::name("void")),
                     type_params: Vec::new(),
                     params: FuncParams {
-                        positional_req: vec![FuncTypeParam {
+                        positional_req: vec![FuncTypeParamPos {
                             param_type: Type::NotFunc(NotFuncType::name("int")),
                             name: Some("x"),
                         }],
@@ -473,13 +473,13 @@ mod tests {
                         positional_req: Vec::new(),
                         extra: Some(FuncParamsExtra::Named(vec![MaybeRequired::new(
                             false,
-                            FuncTypeParam {
+                            FuncTypeParamNamed {
                                 param_type: Type::NotFunc(NotFuncType {
                                     name: "int",
                                     type_args: Vec::new(),
                                     is_nullable: true
                                 }),
-                                name: Some("x"),
+                                name: "x",
                             }
                         )])),
                     },
@@ -502,7 +502,7 @@ mod tests {
                         positional_req: Vec::new(),
                         extra: Some(FuncParamsExtra::Named(vec![MaybeRequired::new(
                             false,
-                            FuncTypeParam {
+                            FuncTypeParamNamed {
                                 param_type: Type::NotFunc(NotFuncType {
                                     name: "List",
                                     type_args: vec![Type::func(FuncType {
@@ -513,7 +513,7 @@ mod tests {
                                     })],
                                     is_nullable: true
                                 }),
-                                name: Some("funcs"),
+                                name: "funcs",
                             }
                         )])),
                     },
