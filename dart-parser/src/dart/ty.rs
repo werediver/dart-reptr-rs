@@ -50,13 +50,20 @@ impl<'s> NotFuncType<'s> {
 pub struct FuncType<'s> {
     pub return_type: Type<'s>,
     pub type_params: Vec<TypeParam<'s>>,
-    pub params: FuncParams<FuncTypeParam<'s>>,
+    pub params: FuncParams<FuncTypeParamPos<'s>, FuncTypeParamNamed<'s>>,
     pub is_nullable: bool,
 }
 
-/// A parameter in a function type.
+/// A positional parameter in a function type.
 #[derive(PartialEq, Eq, Debug)]
-pub struct FuncTypeParam<'s> {
+pub struct FuncTypeParamPos<'s> {
     pub param_type: Type<'s>,
     pub name: Option<&'s str>,
+}
+
+/// A named parameter in a function type.
+#[derive(PartialEq, Eq, Debug)]
+pub struct FuncTypeParamNamed<'s> {
+    pub param_type: Type<'s>,
+    pub name: &'s str,
 }
