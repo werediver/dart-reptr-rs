@@ -4,6 +4,7 @@ use super::{func_like::FuncParams, TypeParam};
 pub enum Type<'s> {
     NotFunc(NotFuncType<'s>),
     Func(Box<FuncType<'s>>),
+    Tuple(Vec<Type<'s>>),
 }
 
 impl<'s> Type<'s> {
