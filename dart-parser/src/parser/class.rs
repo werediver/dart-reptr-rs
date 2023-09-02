@@ -10,15 +10,14 @@ use nom::{
 
 use crate::dart::{
     class::{ClassMember, ClassModifier, ClassModifierSet, Constructor, ConstructorModifier},
-    Class, NotFuncType,
+    Class, NotFuncType, WithMeta,
 };
 
 use super::{
-    annotation::annotation,
-    comment::comment,
     common::*,
     expr::expr,
     func_like::{func_body_content, func_like, func_params},
+    meta::with_meta,
     ty::{identifier, not_func_type},
     type_params::type_params,
     var::var,
@@ -120,7 +119,7 @@ where
     )(s)
 }
 
-fn class_body<'s, E>(s: &'s str) -> PResult<Vec<ClassMember>, E>
+fn class_body<'s, E>(s: &'s str) -> PResult<Vec<WithMeta<ClassMember>>, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
@@ -129,8 +128,8 @@ where
         preceded(
             pair(tag("{"), opt(spbr)),
             cut(terminated(
-                many0(terminated(class_member, opt(spbr))),
-                tag("}"),
+                many0(terminated(with_meta(class_member), opt(spbr))),
+                pair(opt(spbrc), tag("}")),
             )),
         ),
     )(s)
@@ -141,8 +140,6 @@ where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
     alt((
-        comment.map(ClassMember::Comment),
-        annotation.map(ClassMember::Annotation),
         constructor.map(ClassMember::Constructor),
         var.map(ClassMember::Var),
         func_like.map(ClassMember::FuncLike),
@@ -201,9 +198,10 @@ mod tests {
 
     use crate::dart::{
         func_like::{FuncBodyContent, FuncParam, FuncParamModifierSet, FuncParams},
+        meta::Meta,
         ty::Type,
         var::VarModifierSet,
-        TypeParam, Var,
+        Annotation, TypeParam, Var,
     };
 
     use super::*;
@@ -292,15 +290,15 @@ mod tests {
                     extends: None,
                     with: Vec::new(),
                     implements: Vec::new(),
-                    body: vec![
-                        ClassMember::Annotation(crate::dart::Annotation::Ident("override")),
+                    body: vec![WithMeta::new(
+                        vec![Meta::Annotation(Annotation::Ident("override"))],
                         ClassMember::Var(Var {
                             modifiers: VarModifierSet::default(),
                             var_type: Some(Type::NotFunc(NotFuncType::name("String"))),
                             name: "id",
                             initializer: None,
                         }),
-                    ],
+                    )],
                 }
             ))
         );
@@ -363,12 +361,12 @@ mod tests {
                     modifier: None,
                     name: "Record",
                     params: FuncParams {
-                        positional_req: vec![FuncParam {
+                        positional_req: vec![WithMeta::value(FuncParam {
                             modifiers: FuncParamModifierSet::default(),
                             param_type: None,
                             name: "this.id",
                             initializer: None,
-                        }],
+                        })],
                         extra: None
                     },
                     body: None,

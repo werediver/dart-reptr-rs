@@ -11,11 +11,12 @@ use nom::{
 use crate::dart::{
     func_like::{FuncParams, FuncParamsExtra},
     ty::{FuncType, FuncTypeParamNamed, FuncTypeParamPos, Type},
-    MaybeRequired, NotFuncType, TypeParam,
+    MaybeRequired, NotFuncType, TypeParam, WithMeta,
 };
 
 use super::{
     common::{sep_list, spbr, SepMode},
+    meta::with_meta,
     type_params::type_params,
     PResult,
 };
@@ -146,7 +147,7 @@ fn build_func_type<'s>(
     return_type: Option<NotFuncType<'s>>,
     fn_chain: Vec<(
         Vec<TypeParam<'s>>,
-        FuncParams<FuncTypeParamPos<'s>, FuncTypeParamNamed<'s>>,
+        FuncParams<'s, FuncTypeParamPos<'s>, FuncTypeParamNamed<'s>>,
         bool,
     )>,
 ) -> Option<Box<FuncType<'s>>> {
@@ -198,7 +199,7 @@ where
     .parse(s)
 }
 
-fn func_type_params_pos_req<'s, E>(s: &'s str) -> PResult<Vec<FuncTypeParamPos>, E>
+fn func_type_params_pos_req<'s, E>(s: &'s str) -> PResult<Vec<WithMeta<FuncTypeParamPos>>, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
@@ -206,11 +207,11 @@ where
         0,
         SepMode::AllowTrailing,
         pair(tag(","), opt(spbr)),
-        terminated(func_type_param_pos, opt(spbr)),
+        terminated(with_meta(func_type_param_pos), opt(spbr)),
     )(s)
 }
 
-fn func_type_params_pos_opt<'s, E>(s: &'s str) -> PResult<Vec<FuncTypeParamPos>, E>
+fn func_type_params_pos_opt<'s, E>(s: &'s str) -> PResult<Vec<WithMeta<FuncTypeParamPos>>, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
@@ -221,7 +222,7 @@ where
                 0,
                 SepMode::AllowTrailing,
                 pair(tag(","), opt(spbr)),
-                terminated(func_type_param_pos, opt(spbr)),
+                terminated(with_meta(func_type_param_pos), opt(spbr)),
             ),
             tag("]"),
         )),
@@ -247,7 +248,9 @@ where
     )(s)
 }
 
-fn func_type_params_named<'s, E>(s: &'s str) -> PResult<Vec<MaybeRequired<FuncTypeParamNamed>>, E>
+fn func_type_params_named<'s, E>(
+    s: &'s str,
+) -> PResult<Vec<WithMeta<MaybeRequired<FuncTypeParamNamed>>>, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
@@ -260,7 +263,7 @@ where
                     0,
                     SepMode::AllowTrailing,
                     pair(tag(","), opt(spbr)),
-                    terminated(func_type_param_named, opt(spbr)),
+                    terminated(with_meta(func_type_param_named), opt(spbr)),
                 ),
                 tag("}"),
             )),
@@ -401,10 +404,10 @@ mod tests {
                     return_type: Type::NotFunc(NotFuncType::name("void")),
                     type_params: Vec::new(),
                     params: FuncParams {
-                        positional_req: vec![FuncTypeParamPos {
+                        positional_req: vec![WithMeta::value(FuncTypeParamPos {
                             param_type: Type::NotFunc(NotFuncType::name("int")),
                             name: None
-                        }],
+                        })],
                         extra: None,
                     },
                     is_nullable: false,
@@ -426,10 +429,10 @@ mod tests {
                         extends: None
                     }],
                     params: FuncParams {
-                        positional_req: vec![FuncTypeParamPos {
+                        positional_req: vec![WithMeta::value(FuncTypeParamPos {
                             param_type: Type::NotFunc(NotFuncType::name("T")),
                             name: None
-                        }],
+                        })],
                         extra: None,
                     },
                     is_nullable: false,
@@ -448,10 +451,10 @@ mod tests {
                     return_type: Type::NotFunc(NotFuncType::name("void")),
                     type_params: Vec::new(),
                     params: FuncParams {
-                        positional_req: vec![FuncTypeParamPos {
+                        positional_req: vec![WithMeta::value(FuncTypeParamPos {
                             param_type: Type::NotFunc(NotFuncType::name("int")),
                             name: Some("x"),
-                        }],
+                        })],
                         extra: None,
                     },
                     is_nullable: true
@@ -471,16 +474,18 @@ mod tests {
                     type_params: Vec::new(),
                     params: FuncParams {
                         positional_req: Vec::new(),
-                        extra: Some(FuncParamsExtra::Named(vec![MaybeRequired::new(
-                            false,
-                            FuncTypeParamNamed {
-                                param_type: Type::NotFunc(NotFuncType {
-                                    name: "int",
-                                    type_args: Vec::new(),
-                                    is_nullable: true
-                                }),
-                                name: "x",
-                            }
+                        extra: Some(FuncParamsExtra::Named(vec![WithMeta::value(
+                            MaybeRequired::new(
+                                false,
+                                FuncTypeParamNamed {
+                                    param_type: Type::NotFunc(NotFuncType {
+                                        name: "int",
+                                        type_args: Vec::new(),
+                                        is_nullable: true
+                                    }),
+                                    name: "x",
+                                }
+                            )
                         )])),
                     },
                     is_nullable: true
@@ -500,21 +505,23 @@ mod tests {
                     type_params: Vec::new(),
                     params: FuncParams {
                         positional_req: Vec::new(),
-                        extra: Some(FuncParamsExtra::Named(vec![MaybeRequired::new(
-                            false,
-                            FuncTypeParamNamed {
-                                param_type: Type::NotFunc(NotFuncType {
-                                    name: "List",
-                                    type_args: vec![Type::func(FuncType {
-                                        return_type: Type::NotFunc(NotFuncType::void()),
-                                        type_params: Vec::new(),
-                                        params: FuncParams::default(),
-                                        is_nullable: false,
-                                    })],
-                                    is_nullable: true
-                                }),
-                                name: "funcs",
-                            }
+                        extra: Some(FuncParamsExtra::Named(vec![WithMeta::value(
+                            MaybeRequired::new(
+                                false,
+                                FuncTypeParamNamed {
+                                    param_type: Type::NotFunc(NotFuncType {
+                                        name: "List",
+                                        type_args: vec![Type::func(FuncType {
+                                            return_type: Type::NotFunc(NotFuncType::void()),
+                                            type_params: Vec::new(),
+                                            params: FuncParams::default(),
+                                            is_nullable: false,
+                                        })],
+                                        is_nullable: true
+                                    }),
+                                    name: "funcs",
+                                }
+                            )
                         )])),
                     },
                     is_nullable: true

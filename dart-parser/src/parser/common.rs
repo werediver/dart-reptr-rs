@@ -1,12 +1,13 @@
 use nom::{
     branch::alt,
     bytes::complete::{is_a, tag},
+    combinator::recognize,
     error::{ContextError, ParseError},
     multi::{fold_many0, fold_many1},
     InputLength, Parser,
 };
 
-use super::PResult;
+use super::{comment, PResult};
 
 /// Convert irrecoverable errors from into recoverable.
 ///
@@ -104,6 +105,16 @@ where
 pub enum SepMode {
     NoTrailing,
     AllowTrailing,
+}
+
+/// Parse whitespace, including line breaks, and comments.
+///
+/// For use in positions where comments are not collected as metadata.
+pub fn spbrc<'s, E>(s: &'s str) -> PResult<&str, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
+    recognize(skip_many1(alt((is_a(" \t\r\n"), recognize(comment)))))(s)
 }
 
 /// Parse one or more whitespace characters, including line breaks.

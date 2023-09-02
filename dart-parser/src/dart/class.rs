@@ -2,7 +2,7 @@ use tiny_set::with_tiny_set;
 
 use super::{
     func_like::{FuncBodyContent, FuncParam, FuncParams},
-    Annotation, Comment, FuncLike, NotFuncType, TypeParam, Var,
+    FuncLike, NotFuncType, TypeParam, Var, WithMeta,
 };
 
 #[derive(PartialEq, Eq, Debug)]
@@ -16,7 +16,7 @@ pub struct Class<'s> {
     pub with: Vec<NotFuncType<'s>>,
     /// Interfaces.
     pub implements: Vec<NotFuncType<'s>>,
-    pub body: Vec<ClassMember<'s>>,
+    pub body: Vec<WithMeta<'s, ClassMember<'s>>>,
 }
 
 /// The possible combinations are:
@@ -42,8 +42,6 @@ pub enum ClassModifier {
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum ClassMember<'s> {
-    Comment(Comment<'s>),
-    Annotation(Annotation<'s>),
     Constructor(Constructor<'s>),
     Var(Var<'s>),
     FuncLike(FuncLike<'s>),
@@ -53,7 +51,7 @@ pub enum ClassMember<'s> {
 pub struct Constructor<'s> {
     pub modifier: Option<ConstructorModifier>,
     pub name: &'s str,
-    pub params: FuncParams<FuncParam<'s>>,
+    pub params: FuncParams<'s, FuncParam<'s>>,
     pub body: Option<FuncBodyContent<'s>>,
 }
 

@@ -1,6 +1,6 @@
 use tiny_set::with_tiny_set;
 
-use super::{ty::Type, Expr, MaybeRequired, TypeParam};
+use super::{ty::Type, Expr, MaybeRequired, TypeParam, WithMeta};
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum FuncLike<'s> {
@@ -15,7 +15,7 @@ pub struct Func<'s> {
     pub return_type: Type<'s>,
     pub name: &'s str,
     pub type_params: Vec<TypeParam<'s>>,
-    pub params: FuncParams<FuncParam<'s>>,
+    pub params: FuncParams<'s, FuncParam<'s>>,
     pub body: Option<FuncBody<'s>>,
 }
 
@@ -32,7 +32,7 @@ pub struct Setter<'s> {
     pub modifiers: FuncModifierSet,
     pub name: &'s str,
     /// Setters must declare exactly one required positional parameter.
-    pub params: FuncParams<FuncParam<'s>>,
+    pub params: FuncParams<'s, FuncParam<'s>>,
     pub body: Option<FuncBody<'s>>,
 }
 
@@ -45,12 +45,12 @@ pub enum FuncModifier {
 }
 
 #[derive(PartialEq, Eq, Debug)]
-pub struct FuncParams<ParamPos, ParamNamed = ParamPos> {
-    pub positional_req: Vec<ParamPos>,
-    pub extra: Option<FuncParamsExtra<ParamPos, ParamNamed>>,
+pub struct FuncParams<'s, ParamPos, ParamNamed = ParamPos> {
+    pub positional_req: Vec<WithMeta<'s, ParamPos>>,
+    pub extra: Option<FuncParamsExtra<'s, ParamPos, ParamNamed>>,
 }
 
-impl<T, U> Default for FuncParams<T, U> {
+impl<'s, T, U> Default for FuncParams<'s, T, U> {
     fn default() -> Self {
         Self {
             positional_req: Vec::new(),
@@ -60,9 +60,9 @@ impl<T, U> Default for FuncParams<T, U> {
 }
 
 #[derive(PartialEq, Eq, Debug)]
-pub enum FuncParamsExtra<ParamPos, ParamNamed = ParamPos> {
-    PositionalOpt(Vec<ParamPos>),
-    Named(Vec<MaybeRequired<ParamNamed>>),
+pub enum FuncParamsExtra<'s, ParamPos, ParamNamed = ParamPos> {
+    PositionalOpt(Vec<WithMeta<'s, ParamPos>>),
+    Named(Vec<WithMeta<'s, MaybeRequired<ParamNamed>>>),
 }
 
 #[derive(PartialEq, Eq, Debug)]

@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+#[derive(PartialEq, Eq, Debug)]
 pub struct MaybeRequired<T> {
     pub is_required: bool,
     value: T,
@@ -28,28 +29,5 @@ impl<T> MaybeRequired<T> {
 impl<T> AsRef<T> for MaybeRequired<T> {
     fn as_ref(&self) -> &T {
         &self.value
-    }
-}
-
-impl<T> PartialEq<MaybeRequired<T>> for MaybeRequired<T>
-where
-    T: PartialEq<T>,
-{
-    fn eq(&self, other: &MaybeRequired<T>) -> bool {
-        self.is_required == other.is_required && self.value == other.value
-    }
-}
-
-impl<T> Eq for MaybeRequired<T> where MaybeRequired<T>: PartialEq {}
-
-impl<T> Debug for MaybeRequired<T>
-where
-    T: Debug,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("MaybeRequired")
-            .field("is_required", &self.is_required)
-            .field("value", &self.value)
-            .finish()
     }
 }

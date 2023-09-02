@@ -50,7 +50,7 @@ impl<'s> NotFuncType<'s> {
 pub struct FuncType<'s> {
     pub return_type: Type<'s>,
     pub type_params: Vec<TypeParam<'s>>,
-    pub params: FuncParams<FuncTypeParamPos<'s>, FuncTypeParamNamed<'s>>,
+    pub params: FuncParams<'s, FuncTypeParamPos<'s>, FuncTypeParamNamed<'s>>,
     pub is_nullable: bool,
 }
 
