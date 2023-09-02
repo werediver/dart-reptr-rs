@@ -14,13 +14,14 @@ use crate::dart::{
         FuncParam, FuncParamModifier, FuncParamModifierSet, FuncParams, FuncParamsExtra, Getter,
         Setter,
     },
-    FuncLike, MaybeRequired,
+    FuncLike, MaybeRequired, WithMeta,
 };
 
 use super::{
     common::{sep_list, spbr, SepMode},
     expr::block,
     expr::expr,
+    meta::with_meta,
     ty::{identifier, ty},
     type_params::type_params,
     PResult,
@@ -177,7 +178,7 @@ where
     .parse(s)
 }
 
-fn func_params_pos_req<'s, E>(s: &'s str) -> PResult<Vec<FuncParam>, E>
+fn func_params_pos_req<'s, E>(s: &'s str) -> PResult<Vec<WithMeta<'s, FuncParam>>, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
@@ -185,11 +186,11 @@ where
         0,
         SepMode::AllowTrailing,
         pair(tag(","), opt(spbr)),
-        terminated(func_param_pos, opt(spbr)),
+        terminated(with_meta(func_param_pos), opt(spbr)),
     )(s)
 }
 
-fn func_params_pos_opt<'s, E>(s: &'s str) -> PResult<Vec<FuncParam>, E>
+fn func_params_pos_opt<'s, E>(s: &'s str) -> PResult<Vec<WithMeta<'s, FuncParam>>, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
@@ -200,7 +201,7 @@ where
                 0,
                 SepMode::AllowTrailing,
                 pair(tag(","), opt(spbr)),
-                terminated(func_param_pos, opt(spbr)),
+                terminated(with_meta(func_param_pos), opt(spbr)),
             ),
             tag("]"),
         )),
@@ -245,7 +246,7 @@ where
     )(s)
 }
 
-fn func_params_named<'s, E>(s: &'s str) -> PResult<Vec<MaybeRequired<FuncParam>>, E>
+fn func_params_named<'s, E>(s: &'s str) -> PResult<Vec<WithMeta<'s, MaybeRequired<FuncParam>>>, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
@@ -258,7 +259,7 @@ where
                     0,
                     SepMode::AllowTrailing,
                     pair(tag(","), opt(spbr)),
-                    terminated(func_param_named, opt(spbr)),
+                    terminated(with_meta(func_param_named), opt(spbr)),
                 ),
                 tag("}"),
             )),
@@ -359,13 +360,13 @@ where
 fn func_body_modifier<'s, E: ParseError<&'s str>>(s: &'s str) -> PResult<FuncBodyModifier, E> {
     alt((
         value(
-            FuncBodyModifier::SyncGenerator,
-            tuple((tag("sync"), opt(spbr), tag("*"))),
+            FuncBodyModifier::AsyncGenerator,
+            tuple((tag("async"), opt(spbr), tag("*"))),
         ),
         value(FuncBodyModifier::Async, tag("async")),
         value(
-            FuncBodyModifier::AsyncGenerator,
-            tuple((tag("async"), opt(spbr), tag("*"))),
+            FuncBodyModifier::SyncGenerator,
+            tuple((tag("sync"), opt(spbr), tag("*"))),
         ),
     ))(s)
 }
@@ -430,13 +431,13 @@ mod tests {
                     type_params: Vec::new(),
                     params: FuncParams {
                         positional_req: vec![
-                            FuncParam {
+                            WithMeta::value(FuncParam {
                                 modifiers: FuncParamModifierSet::default(),
                                 param_type: Some(Type::NotFunc(NotFuncType::name("int"))),
                                 name: "x",
                                 initializer: None,
-                            },
-                            FuncParam {
+                            }),
+                            WithMeta::value(FuncParam {
                                 modifiers: FuncParamModifierSet::from_iter([
                                     FuncParamModifier::Final
                                 ]),
@@ -447,14 +448,18 @@ mod tests {
                                 })),
                                 name: "y",
                                 initializer: None,
-                            },
+                            }),
                         ],
-                        extra: Some(FuncParamsExtra::PositionalOpt(vec![FuncParam {
-                            modifiers: FuncParamModifierSet::from_iter([FuncParamModifier::Final]),
-                            param_type: Some(Type::NotFunc(NotFuncType::name("bool"))),
-                            name: "mystery_flag",
-                            initializer: Some(Expr::Ident("false")),
-                        }])),
+                        extra: Some(FuncParamsExtra::PositionalOpt(vec![WithMeta::value(
+                            FuncParam {
+                                modifiers: FuncParamModifierSet::from_iter([
+                                    FuncParamModifier::Final
+                                ]),
+                                param_type: Some(Type::NotFunc(NotFuncType::name("bool"))),
+                                name: "mystery_flag",
+                                initializer: Some(Expr::Ident("false")),
+                            }
+                        )])),
                     },
                     body: Some(FuncBody {
                         modifier: None,
@@ -570,12 +575,12 @@ mod tests {
                     modifiers: FuncModifierSet::default(),
                     name: "name",
                     params: FuncParams {
-                        positional_req: vec![FuncParam {
+                        positional_req: vec![WithMeta::value(FuncParam {
                             name: "value",
                             modifiers: FuncParamModifierSet::default(),
                             param_type: Some(Type::NotFunc(NotFuncType::name("String"))),
                             initializer: None
-                        }],
+                        })],
                         extra: None
                     },
                     body: Some(FuncBody {

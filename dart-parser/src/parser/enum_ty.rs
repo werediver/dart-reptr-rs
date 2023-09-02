@@ -3,23 +3,18 @@ use nom::{
     bytes::complete::tag,
     combinator::{cut, opt, success},
     error::{context, ContextError, ParseError},
-    multi::{many0, separated_list0},
+    multi::many0,
     sequence::{pair, preceded, terminated, tuple},
     Parser,
 };
 
-use crate::dart::{
-    class::ClassMember,
-    enum_ty::{EnumMember, EnumValue},
-    EnumTy,
-};
+use crate::dart::{class::ClassMember, enum_ty::EnumValue, EnumTy, WithMeta};
 
 use super::{
-    annotation::annotation,
     class::{class_member, implements_clause},
-    comment::comment,
-    common::spbr,
+    common::{sep_list, spbr, spbrc, SepMode},
     func_call::func_args,
+    meta::with_meta,
     ty::identifier,
     PResult,
 };
@@ -45,7 +40,10 @@ where
     .parse(s)
 }
 
-fn enum_body<'s, E>(s: &'s str) -> PResult<(Vec<EnumMember>, Vec<ClassMember>), E>
+#[allow(clippy::type_complexity)]
+fn enum_body<'s, E>(
+    s: &'s str,
+) -> PResult<(Vec<WithMeta<EnumValue>>, Vec<WithMeta<ClassMember>>), E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
@@ -55,18 +53,16 @@ where
             pair(tag("{"), opt(spbr)),
             cut(terminated(
                 pair(
-                    terminated(
-                        separated_list0(
-                            pair(tag(","), opt(spbr)),
-                            terminated(enum_value_ext, opt(spbr)),
-                        ),
-                        opt(pair(tag(","), opt(spbr))),
-                    )
-                    .map(|items| items.into_iter().flatten().collect::<Vec<_>>()),
+                    sep_list(
+                        0,
+                        SepMode::AllowTrailing,
+                        pair(tag(","), opt(spbr)),
+                        terminated(with_meta(enum_value), opt(spbrc)),
+                    ),
                     alt((
                         preceded(
                             pair(tag(";"), opt(spbr)),
-                            many0(terminated(class_member, opt(spbr))),
+                            many0(terminated(with_meta(class_member), opt(spbr))),
                         ),
                         success(()).map(|_| Vec::new()),
                     )),
@@ -74,28 +70,6 @@ where
                 tag("}"),
             )),
         ),
-    )(s)
-}
-
-fn enum_value_ext<'s, E>(s: &'s str) -> PResult<Vec<EnumMember>, E>
-where
-    E: ParseError<&'s str> + ContextError<&'s str>,
-{
-    context(
-        "enum_value_ext",
-        pair(
-            many0(alt((
-                terminated(comment, opt(spbr)).map(EnumMember::Comment),
-                terminated(annotation, opt(spbr)).map(EnumMember::Annotation),
-            ))),
-            enum_value,
-        )
-        .map(|(meta, value)| {
-            let mut value_ext = meta;
-            value_ext.push(EnumMember::Value(value));
-
-            value_ext
-        }),
     )(s)
 }
 
@@ -120,7 +94,7 @@ where
 mod tests {
     use nom::error::VerboseError;
 
-    use crate::dart::{Annotation, Comment, FuncCall, NotFuncType};
+    use crate::dart::{meta::Meta, Annotation, Comment, FuncCall, NotFuncType};
 
     use super::*;
 
@@ -133,7 +107,7 @@ mod tests {
                 EnumTy {
                     name: "AnyAngle",
                     implements: Vec::new(),
-                    values: vec![EnumMember::Value(EnumValue {
+                    values: vec![WithMeta::value(EnumValue {
                         name: "thirtyDegrees",
                         args: Vec::new(),
                     })],
@@ -154,17 +128,19 @@ mod tests {
                 EnumTy {
                     name: "AnyAngle",
                     implements: Vec::new(),
-                    values: vec![
-                        EnumMember::Comment(Comment::SingleLine("// Here it comes. Big...\n")),
-                        EnumMember::Annotation(Annotation::FuncCall(FuncCall {
-                            ident: NotFuncType::name("Badaboom"),
-                            args: Vec::new()
-                        })),
-                        EnumMember::Value(EnumValue {
+                    values: vec![WithMeta::new(
+                        vec![
+                            Meta::Comment(Comment::SingleLine("// Here it comes. Big...\n")),
+                            Meta::Annotation(Annotation::FuncCall(FuncCall {
+                                ident: NotFuncType::name("Badaboom"),
+                                args: Vec::new()
+                            }))
+                        ],
+                        EnumValue {
                             name: "thirtyDegrees",
                             args: Vec::new(),
-                        })
-                    ],
+                        }
+                    )],
                     members: Vec::new(),
                 }
             ))
@@ -180,7 +156,7 @@ mod tests {
                 EnumTy {
                     name: "AnyAngle",
                     implements: vec![NotFuncType::name("Serializable")],
-                    values: vec![EnumMember::Value(EnumValue {
+                    values: vec![WithMeta::value(EnumValue {
                         name: "thirtyDegrees",
                         args: Vec::new(),
                     })],
