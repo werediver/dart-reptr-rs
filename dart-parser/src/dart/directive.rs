@@ -1,17 +1,22 @@
 #[derive(PartialEq, Eq, Debug)]
 pub enum Directive<'s> {
-    Export(&'s str),
+    Export(Export<'s>),
     Import(Import<'s>),
     Part(&'s str),
     PartOf(PartOf<'s>),
 }
 
 #[derive(PartialEq, Eq, Debug)]
+pub struct Export<'s> {
+    pub target: &'s str,
+    pub filters: Vec<Filter<'s>>,
+}
+
+#[derive(PartialEq, Eq, Debug)]
 pub struct Import<'s> {
     pub target: &'s str,
     pub prefix: Option<&'s str>,
-    pub show: Vec<&'s str>,
-    pub hide: Vec<&'s str>,
+    pub filters: Vec<Filter<'s>>,
 }
 
 impl<'s> Import<'s> {
@@ -19,8 +24,7 @@ impl<'s> Import<'s> {
         Import {
             target,
             prefix: None,
-            show: Vec::default(),
-            hide: Vec::default(),
+            filters: Vec::default(),
         }
     }
 
@@ -28,10 +32,15 @@ impl<'s> Import<'s> {
         Import {
             target,
             prefix: Some(prefix),
-            show: Vec::default(),
-            hide: Vec::default(),
+            filters: Vec::default(),
         }
     }
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub enum Filter<'s> {
+    Show(Vec<&'s str>),
+    Hide(Vec<&'s str>),
 }
 
 #[derive(PartialEq, Eq, Debug)]
