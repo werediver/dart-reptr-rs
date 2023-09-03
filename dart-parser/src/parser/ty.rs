@@ -10,12 +10,13 @@ use nom::{
 
 use crate::dart::{
     func_like::{FuncParams, FuncParamsExtra},
-    ty::{FuncType, FuncTypeParamNamed, FuncTypeParamPos, Type},
+    ty::{FuncType, FuncTypeParamNamed, FuncTypeParamPos, Tuple, Type},
     MaybeRequired, NotFuncType, TypeParam, WithMeta,
 };
 
 use super::{
-    common::{sep_list, spbr, SepMode},
+    common::{sep_list, spbr, spbrc, SepMode},
+    maybe_required::maybe_required,
     meta::with_meta,
     type_params::type_params,
     PResult,
@@ -238,7 +239,7 @@ where
         alt((
             // A type followed by a name
             pair(
-                terminated(ty, opt(spbr)),
+                terminated(ty, opt(spbrc)),
                 terminated(identifier, opt(spbr)).map(Some),
             ),
             // Just a type
@@ -263,51 +264,73 @@ where
                     0,
                     SepMode::AllowTrailing,
                     pair(tag(","), opt(spbr)),
-                    terminated(with_meta(func_type_param_named), opt(spbr)),
+                    terminated(with_meta(maybe_required(func_type_param_named)), opt(spbr)),
                 ),
-                tag("}"),
+                pair(opt(spbrc), tag("}")),
             )),
         ),
     )(s)
 }
 
-fn func_type_param_named<'s, E>(s: &'s str) -> PResult<MaybeRequired<FuncTypeParamNamed>, E>
+fn func_type_param_named<'s, E>(s: &'s str) -> PResult<FuncTypeParamNamed, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
     context(
         "func_param_named",
         tuple((
-            opt(terminated(tag("required"), spbr)),
             // A type followed by a name
-            terminated(ty, opt(spbr)),
+            terminated(ty, opt(spbrc)),
             terminated(identifier, opt(spbr)),
         ))
-        .map(|(req, param_type, name)| {
-            MaybeRequired::new(req.is_some(), FuncTypeParamNamed { param_type, name })
-        }),
+        .map(|(param_type, name)| FuncTypeParamNamed { param_type, name }),
     )
     .parse(s)
 }
 
-fn tuple_ty<'s, E>(s: &'s str) -> PResult<Vec<Type>, E>
+fn tuple_ty<'s, E>(s: &'s str) -> PResult<Tuple, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
     context(
-        "tuple",
-        preceded(
-            pair(tag("("), opt(spbr)),
-            terminated(
-                sep_list(
-                    0,
-                    SepMode::AllowTrailing,
-                    pair(tag(","), opt(spbr)),
-                    terminated(ty, opt(spbr)),
+        "tuple_ty",
+        pair(
+            preceded(
+                pair(tag("("), opt(spbr)),
+                terminated(
+                    pair(
+                        sep_list(
+                            0,
+                            SepMode::AllowTrailing,
+                            pair(tag(","), opt(spbr)),
+                            terminated(func_type_param_pos, opt(spbrc)),
+                        ),
+                        alt((
+                            preceded(
+                                pair(tag("{"), opt(spbr)),
+                                terminated(
+                                    sep_list(
+                                        0,
+                                        SepMode::AllowTrailing,
+                                        pair(tag(","), opt(spbr)),
+                                        terminated(func_type_param_named, opt(spbrc)),
+                                    ),
+                                    pair(opt(spbrc), tag("}")),
+                                ),
+                            ),
+                            success(()).map(|_| Vec::new()),
+                        )),
+                    ),
+                    pair(opt(spbrc), tag(")")),
                 ),
-                tag(")"),
             ),
-        ),
+            opt(pair(opt(spbrc), tag("?"))),
+        )
+        .map(|((params_pos, params_named), is_nullable)| Tuple {
+            params_pos,
+            params_named,
+            is_nullable: is_nullable.is_some(),
+        }),
     )(s)
 }
 
@@ -552,6 +575,81 @@ mod tests {
                     params: FuncParams::default(),
                     is_nullable: false,
                 })
+            ))
+        );
+    }
+
+    #[test]
+    fn tuple_simple() {
+        assert_eq!(
+            tuple_ty::<VerboseError<_>>("(int, int b,)?x"),
+            Ok((
+                "x",
+                Tuple {
+                    params_pos: vec![
+                        FuncTypeParamPos {
+                            param_type: Type::NotFunc(NotFuncType::name("int")),
+                            name: None,
+                        },
+                        FuncTypeParamPos {
+                            param_type: Type::NotFunc(NotFuncType::name("int")),
+                            name: Some("b"),
+                        }
+                    ],
+                    params_named: Vec::new(),
+                    is_nullable: true,
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn tuple_named() {
+        assert_eq!(
+            tuple_ty::<VerboseError<_>>("({int a, int b,})x"),
+            Ok((
+                "x",
+                Tuple {
+                    params_pos: Vec::new(),
+                    params_named: vec![
+                        FuncTypeParamNamed {
+                            param_type: Type::NotFunc(NotFuncType::name("int")),
+                            name: "a",
+                        },
+                        FuncTypeParamNamed {
+                            param_type: Type::NotFunc(NotFuncType::name("int")),
+                            name: "b",
+                        }
+                    ],
+                    is_nullable: false,
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn tuple_mixed() {
+        assert_eq!(
+            tuple_ty::<VerboseError<_>>("(int, int b, {int c,})x"),
+            Ok((
+                "x",
+                Tuple {
+                    params_pos: vec![
+                        FuncTypeParamPos {
+                            param_type: Type::NotFunc(NotFuncType::name("int")),
+                            name: None,
+                        },
+                        FuncTypeParamPos {
+                            param_type: Type::NotFunc(NotFuncType::name("int")),
+                            name: Some("b"),
+                        }
+                    ],
+                    params_named: vec![FuncTypeParamNamed {
+                        param_type: Type::NotFunc(NotFuncType::name("int")),
+                        name: "c",
+                    },],
+                    is_nullable: false,
+                }
             ))
         );
     }

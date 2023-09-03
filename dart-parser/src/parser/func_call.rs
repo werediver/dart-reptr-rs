@@ -10,20 +10,36 @@ use nom::{
 use crate::dart::func_call::{FuncArg, FuncCall};
 
 use super::{
-    common::{sep_list, spbr, SepMode},
+    common::{sep_list, spbr, spbrc, SepMode},
     expr::expr,
     ty::{identifier, not_func_type},
     PResult,
 };
 
-pub fn func_call<'s, E>(s: &'s str) -> PResult<FuncCall, E>
+pub fn _func_call<'s, E>(s: &'s str) -> PResult<FuncCall, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
     context(
         "func_call",
-        pair(terminated(not_func_type, opt(spbr)), func_args)
+        pair(terminated(not_func_type, opt(spbrc)), func_args)
             .map(|(ident, args)| FuncCall { ident, args }),
+    )(s)
+}
+
+/// In function/constructor-call annotations whitespace is not allowed in front
+/// of the parentheses grouping the call arguments.
+///
+/// When an annotation is applied to a function declaration, this helps
+/// differentiating between the annotation arguments and the return type of the
+/// annotated function (which may be a tuple).
+pub fn annotation_func_call<'s, E>(s: &'s str) -> PResult<FuncCall, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
+    context(
+        "func_call",
+        pair(not_func_type, func_args).map(|(ident, args)| FuncCall { ident, args }),
     )(s)
 }
 
@@ -54,7 +70,7 @@ where
 {
     alt((
         pair(
-            terminated(identifier, tuple((opt(spbr), tag(":"), opt(spbr)))),
+            terminated(identifier, tuple((opt(spbrc), tag(":"), opt(spbrc)))),
             expr,
         )
         .map(|(name, value)| FuncArg {
@@ -76,7 +92,7 @@ mod tests {
     #[test]
     fn func_call_simple_test() {
         assert_eq!(
-            func_call::<VerboseError<_>>("f() x"),
+            _func_call::<VerboseError<_>>("f() x"),
             Ok((
                 " x",
                 FuncCall {
@@ -90,7 +106,7 @@ mod tests {
     #[test]
     fn func_call_mixed_test() {
         assert_eq!(
-            func_call::<VerboseError<_>>("f<int>(1, named: two, verbatim: 1 + 2) x"),
+            _func_call::<VerboseError<_>>("f<int>(1, named: two, verbatim: 1 + 2) x"),
             Ok((
                 " x",
                 FuncCall {

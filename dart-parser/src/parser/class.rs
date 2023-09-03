@@ -37,16 +37,18 @@ where
             opt(terminated(extends_clause, opt(spbr))),
             opt(terminated(with_clause, opt(spbr))),
             opt(terminated(implements_clause, opt(spbr))),
+            opt(terminated(mixin_on_clause, opt(spbr))),
             class_body,
         ))
         .map(
-            |(modifiers, name, type_params, extends, with, implements, body)| Class {
+            |(modifiers, name, type_params, extends, with, implements, on, body)| Class {
                 modifiers,
                 name,
                 type_params: type_params.unwrap_or(Vec::new()),
                 extends,
                 with: with.unwrap_or(Vec::new()),
                 implements: implements.unwrap_or(Vec::new()),
+                mixin_on: on.unwrap_or(Vec::new()),
                 body,
             },
         ),
@@ -94,10 +96,26 @@ where
     context(
         "implements_clause",
         preceded(
-            pair(tag("implements"), spbr),
+            pair(tag("implements"), spbrc),
             cut(separated_list1(
-                tuple((opt(spbr), tag(","), opt(spbr))),
-                not_func_type,
+                pair(tag(","), opt(spbrc)),
+                terminated(not_func_type, opt(spbrc)),
+            )),
+        ),
+    )(s)
+}
+
+pub fn mixin_on_clause<'s, E>(s: &'s str) -> PResult<Vec<NotFuncType>, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
+    context(
+        "mixin_on_clause",
+        preceded(
+            pair(tag("on"), spbrc),
+            cut(separated_list1(
+                pair(tag(","), opt(spbrc)),
+                terminated(not_func_type, opt(spbrc)),
             )),
         ),
     )(s)
@@ -235,9 +253,9 @@ mod tests {
     #[test]
     fn implements_test() {
         assert_eq!(
-            implements_clause::<VerboseError<_>>("implements A, B, C "),
+            implements_clause::<VerboseError<_>>("implements A, B, C x"),
             Ok((
-                " ",
+                "x",
                 vec![
                     NotFuncType::name("A"),
                     NotFuncType::name("B"),
@@ -271,6 +289,7 @@ mod tests {
                     extends: Some(NotFuncType::name("Base")),
                     with: Vec::new(),
                     implements: vec![NotFuncType::name("A"), NotFuncType::name("B")],
+                    mixin_on: Vec::default(),
                     body: Vec::new(),
                 }
             ))
@@ -290,6 +309,7 @@ mod tests {
                     extends: None,
                     with: Vec::new(),
                     implements: Vec::new(),
+                    mixin_on: Vec::default(),
                     body: vec![WithMeta::new(
                         vec![Meta::Annotation(Annotation::Ident("override"))],
                         ClassMember::Var(Var {
@@ -329,6 +349,7 @@ mod tests {
                         })],
                         is_nullable: false,
                     }],
+                    mixin_on: Vec::default(),
                     body: Vec::new(),
                 }
             ))

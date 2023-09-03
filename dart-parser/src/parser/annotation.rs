@@ -9,7 +9,7 @@ use nom::{
 
 use crate::dart::Annotation;
 
-use super::{func_call::func_call, ty::identifier, PResult};
+use super::{func_call::annotation_func_call, ty::identifier, PResult};
 
 pub fn annotation<'s, E>(s: &'s str) -> PResult<Annotation, E>
 where
@@ -20,7 +20,7 @@ where
         preceded(
             tag("@"),
             cut(alt((
-                func_call.map(Annotation::FuncCall),
+                annotation_func_call.map(Annotation::FuncCall),
                 identifier.map(Annotation::Ident),
             ))),
         ),

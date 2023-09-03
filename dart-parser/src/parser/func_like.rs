@@ -18,9 +18,10 @@ use crate::dart::{
 };
 
 use super::{
-    common::{sep_list, spbr, SepMode},
+    common::{sep_list, spbr, spbrc, SepMode},
     expr::block,
     expr::expr,
+    maybe_required::maybe_required,
     meta::with_meta,
     ty::{identifier, ty},
     type_params::type_params,
@@ -167,7 +168,7 @@ where
                         func_params_named.map(FuncParamsExtra::Named),
                     ))),
                 ),
-                pair(opt(spbr), tag(")")),
+                pair(opt(spbrc), tag(")")),
             )),
         )
         .map(|(positional_req, extra)| FuncParams {
@@ -182,11 +183,14 @@ fn func_params_pos_req<'s, E>(s: &'s str) -> PResult<Vec<WithMeta<'s, FuncParam>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
-    sep_list(
-        0,
-        SepMode::AllowTrailing,
-        pair(tag(","), opt(spbr)),
-        terminated(with_meta(func_param_pos), opt(spbr)),
+    terminated(
+        sep_list(
+            0,
+            SepMode::AllowTrailing,
+            pair(tag(","), opt(spbr)),
+            terminated(with_meta(func_param_pos), opt(spbrc)),
+        ),
+        opt(spbrc),
     )(s)
 }
 
@@ -201,9 +205,9 @@ where
                 0,
                 SepMode::AllowTrailing,
                 pair(tag(","), opt(spbr)),
-                terminated(with_meta(func_param_pos), opt(spbr)),
+                terminated(with_meta(func_param_pos), opt(spbrc)),
             ),
-            tag("]"),
+            pair(opt(spbrc), tag("]")),
         )),
     )(s)
 }
@@ -216,24 +220,21 @@ where
         "func_param_pos",
         tuple((
             alt((
-                terminated(func_param_modifier_set, spbr),
+                terminated(func_param_modifier_set, spbrc),
                 success(FuncParamModifierSet::default()),
             )),
-            opt(terminated(tag("var"), spbr)),
+            opt(terminated(tag("var"), spbrc)),
             alt((
                 // A type followed by a name
                 pair(
-                    terminated(ty, opt(spbr)).map(Some),
-                    terminated(identifier, opt(spbr)),
+                    terminated(ty, opt(spbrc)).map(Some),
+                    terminated(identifier, opt(spbrc)),
                 ),
                 // Just a name
-                terminated(identifier, opt(spbr)).map(|id| (None, id)),
+                terminated(identifier, opt(spbrc)).map(|id| (None, id)),
             )),
             // An initializer
-            opt(preceded(
-                pair(tag("="), opt(spbr)),
-                cut(terminated(expr, opt(spbr))),
-            )),
+            opt(preceded(pair(tag("="), opt(spbrc)), cut(expr))),
         ))
         .map(
             |(modifiers, _, (param_type, name), initializer)| FuncParam {
@@ -259,9 +260,9 @@ where
                     0,
                     SepMode::AllowTrailing,
                     pair(tag(","), opt(spbr)),
-                    terminated(with_meta(func_param_named), opt(spbr)),
+                    terminated(with_meta(func_param_named), opt(spbrc)),
                 ),
-                tag("}"),
+                pair(opt(spbrc), tag("}")),
             )),
         ),
     )(s)
@@ -273,39 +274,34 @@ where
 {
     context(
         "func_param_named",
-        tuple((
-            opt(terminated(tag("required"), spbr)),
-            alt((
-                terminated(func_param_modifier_set, spbr),
-                success(FuncParamModifierSet::default()),
-            )),
-            opt(terminated(tag("var"), spbr)),
-            alt((
-                // A type followed by a name
-                pair(
-                    terminated(ty, opt(spbr)).map(Some),
-                    terminated(identifier, opt(spbr)),
-                ),
-                // Just a name
-                terminated(identifier, opt(spbr)).map(|id| (None, id)),
-            )),
-            // An initializer
-            opt(preceded(
-                pair(tag("="), opt(spbr)),
-                cut(terminated(expr, opt(spbr))),
-            )),
-        ))
-        .map(|(req, modifiers, _, (param_type, name), initializer)| {
-            MaybeRequired::new(
-                req.is_some(),
-                FuncParam {
+        maybe_required(
+            tuple((
+                alt((
+                    terminated(func_param_modifier_set, spbr),
+                    success(FuncParamModifierSet::default()),
+                )),
+                opt(terminated(tag("var"), spbr)),
+                alt((
+                    // A type followed by a name
+                    pair(terminated(ty, opt(spbr)).map(Some), identifier),
+                    // Just a name
+                    identifier.map(|id| (None, id)),
+                )),
+                // An initializer
+                opt(preceded(
+                    tuple((opt(spbrc), tag("="), opt(spbrc))),
+                    cut(expr),
+                )),
+            ))
+            .map(
+                |(modifiers, _, (param_type, name), initializer)| FuncParam {
                     modifiers,
                     param_type,
                     name,
                     initializer,
                 },
-            )
-        }),
+            ),
+        ),
     )
     .parse(s)
 }

@@ -26,8 +26,8 @@ where
     context(
         "enum_ty",
         tuple((
-            terminated(preceded(pair(tag("enum"), spbr), identifier), opt(spbr)),
-            opt(terminated(implements_clause, opt(spbr))),
+            terminated(preceded(pair(tag("enum"), spbrc), identifier), opt(spbr)),
+            opt(terminated(implements_clause, opt(spbrc))),
             enum_body,
         )),
     )
@@ -53,11 +53,14 @@ where
             pair(tag("{"), opt(spbr)),
             cut(terminated(
                 pair(
-                    sep_list(
-                        0,
-                        SepMode::AllowTrailing,
-                        pair(tag(","), opt(spbr)),
-                        terminated(with_meta(enum_value), opt(spbrc)),
+                    terminated(
+                        sep_list(
+                            0,
+                            SepMode::AllowTrailing,
+                            pair(tag(","), opt(spbr)),
+                            terminated(with_meta(enum_value), opt(spbrc)),
+                        ),
+                        opt(spbrc),
                     ),
                     alt((
                         preceded(

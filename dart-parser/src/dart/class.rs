@@ -16,6 +16,8 @@ pub struct Class<'s> {
     pub with: Vec<NotFuncType<'s>>,
     /// Interfaces.
     pub implements: Vec<NotFuncType<'s>>,
+    /// Types a mix-in can be added to.
+    pub mixin_on: Vec<NotFuncType<'s>>,
     pub body: Vec<WithMeta<'s, ClassMember<'s>>>,
 }
 

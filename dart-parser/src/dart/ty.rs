@@ -4,7 +4,7 @@ use super::{func_like::FuncParams, TypeParam};
 pub enum Type<'s> {
     NotFunc(NotFuncType<'s>),
     Func(Box<FuncType<'s>>),
-    Tuple(Vec<Type<'s>>),
+    Tuple(Tuple<'s>),
 }
 
 impl<'s> Type<'s> {
@@ -66,4 +66,13 @@ pub struct FuncTypeParamPos<'s> {
 pub struct FuncTypeParamNamed<'s> {
     pub param_type: Type<'s>,
     pub name: &'s str,
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub struct Tuple<'s> {
+    /// A name can be specified for a positional tuple parameter,
+    /// but has no meaning whatsoever.
+    pub params_pos: Vec<FuncTypeParamPos<'s>>,
+    pub params_named: Vec<FuncTypeParamNamed<'s>>,
+    pub is_nullable: bool,
 }
