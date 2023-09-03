@@ -23,15 +23,18 @@ pub fn expr<'s, E>(s: &'s str) -> PResult<Expr, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
-    recognize(
-        // Make sure something other than whitespace is consumed
-        preceded(opt(spbr), expr_body),
+    context(
+        "expr",
+        recognize(
+            // Make sure something other than whitespace is consumed
+            preceded(opt(spbr), expr_body),
+        )
+        .and_then(alt((
+            terminated(identifier, eof).map(Expr::Ident),
+            terminated(string, eof).map(Expr::String),
+            |s: &'s str| Ok((&s[s.len()..], Expr::Verbatim(s))),
+        ))),
     )
-    .and_then(alt((
-        terminated(identifier, eof).map(Expr::Ident),
-        terminated(string, eof).map(Expr::String),
-        |s: &'s str| Ok((&s[s.len()..], Expr::Verbatim(s))),
-    )))
     .parse(s)
 }
 

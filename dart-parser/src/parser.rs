@@ -8,6 +8,7 @@ mod expr;
 mod extension;
 mod func_call;
 mod func_like;
+mod maybe_required;
 mod meta;
 mod string;
 mod ty;
@@ -137,6 +138,7 @@ mod tests {
                         extends: None,
                         with: Vec::new(),
                         implements: Vec::default(),
+                        mixin_on: Vec::default(),
                         body: vec![
                             WithMeta::value(ClassMember::Constructor(Constructor {
                                 modifier: None,
@@ -192,6 +194,7 @@ mod tests {
                                 },
                                 NotFuncType::name("C")
                             ],
+                            mixin_on: Vec::default(),
                             body: vec![WithMeta::value(ClassMember::Var(Var {
                                 modifiers: VarModifierSet::default(),
                                 var_type: Some(Type::NotFunc(NotFuncType::name("String"))),
