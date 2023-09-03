@@ -1,7 +1,7 @@
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    combinator::{cut, opt},
+    combinator::{cut, opt, success},
     error::{context, ContextError, ParseError},
     multi::many0,
     sequence::{pair, preceded, terminated, tuple},
@@ -28,14 +28,25 @@ where
         "extension",
         tuple((
             alt((
-                tuple((tag("extension"), spbr, tag("on"), spbr)).map(|_| (None, Vec::new())),
+                tuple((
+                    pair(tag("extension"), opt(spbr)),
+                    alt((
+                        terminated(type_params, opt(spbr)),
+                        success(()).map(|_| Vec::new()),
+                    )),
+                    pair(tag("on"), spbr),
+                ))
+                .map(|(_, type_params, _)| (None, type_params)),
                 tuple((
                     terminated(tag("extension"), spbr),
                     terminated(identifier, opt(spbr)),
-                    opt(terminated(type_params, opt(spbr))),
+                    alt((
+                        terminated(type_params, opt(spbr)),
+                        success(()).map(|_| Vec::new()),
+                    )),
                     terminated(tag("on"), spbr),
                 ))
-                .map(|(_, name, type_params, _)| (Some(name), type_params.unwrap_or(Vec::new()))),
+                .map(|(_, name, type_params, _)| (Some(name), type_params)),
             )),
             terminated(ty, opt(spbr)),
             extension_body,

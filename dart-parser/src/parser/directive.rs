@@ -1,16 +1,21 @@
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    combinator::{cut, opt, success},
+    combinator::{cut, opt},
     error::{context, ContextError, ParseError},
     multi::separated_list1,
     sequence::{pair, preceded, terminated, tuple},
     Parser,
 };
 
-use crate::dart::directive::{Directive, Import, PartOf};
+use crate::dart::directive::{Directive, Export, Filter, Import, PartOf};
 
-use super::{common::spbr, string::string, ty::identifier, PResult};
+use super::{
+    common::{sep_list, spbr, spbrc, SepMode},
+    string::string,
+    ty::identifier,
+    PResult,
+};
 
 pub fn directive<'s, E>(s: &'s str) -> PResult<Directive, E>
 where
@@ -27,7 +32,7 @@ where
     )(s)
 }
 
-fn export<'s, E>(s: &'s str) -> PResult<&str, E>
+fn export<'s, E>(s: &'s str) -> PResult<Export, E>
 where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
@@ -35,8 +40,12 @@ where
         "export",
         preceded(
             pair(tag("export"), spbr),
-            cut(terminated(terminated(string, opt(spbr)), tag(";"))),
-        ),
+            cut(terminated(
+                pair(terminated(string, opt(spbr)), import_filters),
+                tag(";"),
+            )),
+        )
+        .map(|(target, filters)| Export { target, filters }),
     )(s)
 }
 
@@ -55,31 +64,33 @@ where
                         pair(tag("as"), spbr),
                         terminated(identifier, opt(spbr)),
                     )),
-                    alt((
-                        terminated(
-                            pair(show_clause, opt(preceded(opt(spbr), hide_clause)))
-                                .map(|(show, hide)| (Some(show), hide)),
-                            opt(spbr),
-                        ),
-                        terminated(
-                            pair(hide_clause, opt(preceded(opt(spbr), show_clause)))
-                                .map(|(hide, show)| (show, Some(hide))),
-                            opt(spbr),
-                        ),
-                        success((None, None)),
-                    )),
+                    import_filters,
                 )),
                 tag(";"),
             )),
         )
-        .map(|(target, prefix, (show, hide))| Import {
+        .map(|(target, prefix, filters)| Import {
             target,
             prefix,
-            show: show.unwrap_or(Vec::new()),
-            hide: hide.unwrap_or(Vec::new()),
+            filters,
         }),
     )
     .parse(s)
+}
+
+fn import_filters<'s, E>(s: &'s str) -> PResult<Vec<Filter>, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
+    context(
+        "import_filters",
+        sep_list(
+            0,
+            SepMode::NoTrailing,
+            spbrc,
+            alt((show_clause.map(Filter::Show), hide_clause.map(Filter::Hide))),
+        ),
+    )(s)
 }
 
 fn show_clause<'s, E>(s: &'s str) -> PResult<Vec<&str>, E>
@@ -87,8 +98,8 @@ where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
     preceded(
-        pair(tag("show"), spbr),
-        separated_list1(tuple((opt(spbr), tag(","), opt(spbr))), identifier),
+        pair(tag("show"), spbrc),
+        separated_list1(tuple((opt(spbrc), tag(","), opt(spbrc))), identifier),
     )(s)
 }
 
@@ -97,8 +108,8 @@ where
     E: ParseError<&'s str> + ContextError<&'s str>,
 {
     preceded(
-        pair(tag("hide"), spbr),
-        separated_list1(tuple((opt(spbr), tag(","), opt(spbr))), identifier),
+        pair(tag("hide"), spbrc),
+        separated_list1(tuple((opt(spbrc), tag(","), opt(spbrc))), identifier),
     )(s)
 }
 
@@ -141,7 +152,13 @@ mod tests {
     fn export_test() {
         assert_eq!(
             export::<VerboseError<_>>("export 'src/utils.dart';x"),
-            Ok(("x", "src/utils.dart"))
+            Ok((
+                "x",
+                Export {
+                    target: "src/utils.dart",
+                    filters: Vec::new()
+                }
+            ))
         );
     }
 
@@ -170,8 +187,7 @@ mod tests {
                 Import {
                     target: "package:path/path.dart",
                     prefix: None,
-                    show: vec!["join"],
-                    hide: Vec::default(),
+                    filters: vec![Filter::Show(vec!["join"])],
                 }
             ))
         );
@@ -186,8 +202,7 @@ mod tests {
                 Import {
                     target: "package:path/path.dart",
                     prefix: None,
-                    show: Vec::default(),
-                    hide: vec!["join", "basename"],
+                    filters: vec![Filter::Hide(vec!["join", "basename"])],
                 }
             ))
         );
@@ -204,8 +219,10 @@ mod tests {
                 Import {
                     target: "package:path/path.dart",
                     prefix: Some("p"),
-                    show: vec!["join", "basename"],
-                    hide: vec!["dirname"],
+                    filters: vec![
+                        Filter::Show(vec!["join", "basename"]),
+                        Filter::Hide(vec!["dirname"])
+                    ],
                 }
             ))
         );
@@ -222,8 +239,10 @@ mod tests {
                 Import {
                     target: "package:path/path.dart",
                     prefix: Some("p"),
-                    show: vec!["join", "basename"],
-                    hide: vec!["dirname"],
+                    filters: vec![
+                        Filter::Hide(vec!["dirname"]),
+                        Filter::Show(vec!["join", "basename"])
+                    ],
                 }
             ))
         );
