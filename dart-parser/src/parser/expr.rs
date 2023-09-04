@@ -126,10 +126,18 @@ mod tests {
     }
 
     #[test]
-    fn expr_list_test() {
+    fn expr_typed_list_test() {
         assert_eq!(
             expr::<VerboseError<_>>("<String>['asdf', 'jkl;']; "),
             Ok(("; ", Expr::Verbatim("<String>['asdf', 'jkl;']")))
+        );
+    }
+
+    #[test]
+    fn expr_list_test() {
+        assert_eq!(
+            expr::<VerboseError<_>>("[\n'asdf',\n'jkl;'\n]; "),
+            Ok(("; ", Expr::Verbatim("[\n'asdf',\n'jkl;'\n]")))
         );
     }
 

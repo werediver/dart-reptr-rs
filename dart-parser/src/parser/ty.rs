@@ -346,6 +346,14 @@ mod tests {
     use super::*;
 
     #[test]
+    fn identifier_test() {
+        assert_eq!(
+            identifier::<VerboseError<_>>("externalSource "),
+            Ok((" ", "externalSource"))
+        );
+    }
+
+    #[test]
     fn type_args_test() {
         assert_eq!(
             type_args::<VerboseError<_>>("<void Function()>x"),

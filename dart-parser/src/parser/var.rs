@@ -1,7 +1,7 @@
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    combinator::{cut, opt, success, value},
+    combinator::{cut, opt, peek, success, value},
     error::{context, ContextError, ParseError},
     multi::fold_many0,
     sequence::{pair, preceded, terminated, tuple},
@@ -14,7 +14,7 @@ use crate::dart::{
 };
 
 use super::{
-    common::spbr,
+    common::{spbr, spbr_char},
     expr::expr,
     ty::{identifier, ty},
     PResult,
@@ -64,7 +64,7 @@ fn var_modifier_set<'s, E: ParseError<&'s str>>(s: &'s str) -> PResult<VarModifi
     let modifiers = VarModifierSet::from_iter([modifier]);
 
     fold_many0(
-        preceded(spbr, var_modifier),
+        preceded(spbr, terminated(var_modifier, peek(spbr_char))),
         move || modifiers,
         |modifiers, modifier| modifiers.with(modifier),
     )(s)
@@ -110,6 +110,27 @@ mod tests {
     }
 
     #[test]
+    fn var_modifier_test() {
+        const CULPRIT: &str = r#"
+const externalSources = [
+    "https://a.b.c/",
+];
+"#;
+        assert_eq!(
+            var::<VerboseError<_>>(CULPRIT.trim_start()),
+            Ok((
+                "\n",
+                Var {
+                    modifiers: VarModifierSet::from_iter([VarModifier::Const]),
+                    var_type: None,
+                    name: "externalSources",
+                    initializer: Some(Expr::Verbatim("[\n    \"https://a.b.c/\",\n]"))
+                }
+            ))
+        );
+    }
+
+    #[test]
     fn var_init() {
         assert_eq!(
             var::<VerboseError<_>>("static const type = 'type'; "),
@@ -122,6 +143,24 @@ mod tests {
                     var_type: None,
                     name: "type",
                     initializer: Some(Expr::String("type")),
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn var_const_init() {
+        assert_eq!(
+            var::<VerboseError<_>>("const urls = [\n  'https://a.b.c/',\n  'https://b.c.d/',\n]; "),
+            Ok((
+                " ",
+                Var {
+                    modifiers: VarModifierSet::from_iter([VarModifier::Const]),
+                    var_type: None,
+                    name: "urls",
+                    initializer: Some(Expr::Verbatim(
+                        "[\n  'https://a.b.c/',\n  'https://b.c.d/',\n]"
+                    )),
                 }
             ))
         );

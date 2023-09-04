@@ -1,6 +1,7 @@
 use nom::{
     branch::alt,
     bytes::complete::{is_a, tag},
+    character::complete::one_of,
     combinator::recognize,
     error::{ContextError, ParseError},
     multi::{fold_many0, fold_many1},
@@ -120,6 +121,10 @@ where
 /// Parse one or more whitespace characters, including line breaks.
 pub fn spbr<'s, E: ParseError<&'s str>>(s: &'s str) -> PResult<&str, E> {
     is_a(" \t\r\n")(s)
+}
+
+pub fn spbr_char<'s, E: ParseError<&'s str>>(s: &'s str) -> PResult<char, E> {
+    one_of(" \t\r\n")(s)
 }
 
 /// Parse exactly one line break.
