@@ -5,6 +5,7 @@ use super::{ty::Type, Expr, MaybeRequired, TypeParam, WithMeta};
 #[derive(PartialEq, Eq, Debug)]
 pub enum FuncLike<'s> {
     Func(Func<'s>),
+    Operator(Operator<'s>),
     Getter(Getter<'s>),
     Setter(Setter<'s>),
 }
@@ -17,6 +18,46 @@ pub struct Func<'s> {
     pub type_params: Vec<TypeParam<'s>>,
     pub params: FuncParams<'s, FuncParam<'s>>,
     pub body: Option<FuncBody<'s>>,
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub struct Operator<'s> {
+    pub modifiers: FuncModifierSet,
+    pub return_type: Type<'s>,
+    pub operator_type: UserDefOperator,
+    pub type_params: Vec<TypeParam<'s>>,
+    pub params: FuncParams<'s, FuncParam<'s>>,
+    pub body: Option<FuncBody<'s>>,
+}
+
+#[derive(PartialEq, Eq, Copy, Clone, Debug)]
+pub enum UserDefOperator {
+    Lt,
+    Lte,
+    Gt,
+    Gte,
+    /// Could mean negation or subtraction, depending on the signature.
+    Minus,
+    Add,
+    Div,
+    DivInt,
+    Mul,
+    Mod,
+    Pipe,
+    Caret,
+    Amp,
+    /// `<<`
+    LShift,
+    /// `>>`
+    RShift,
+    /// `>>>`
+    RShiftTri,
+    /// `[]`
+    IndexGet,
+    /// `[]=`
+    IndexSet,
+    Tilde,
+    Eq,
 }
 
 #[derive(PartialEq, Eq, Debug)]

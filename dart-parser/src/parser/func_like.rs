@@ -1,6 +1,7 @@
 use nom::{
     branch::alt,
     bytes::complete::tag,
+    character::complete::char,
     combinator::{cut, opt, success, value},
     error::{context, ContextError, ParseError},
     multi::fold_many0,
@@ -12,7 +13,7 @@ use crate::dart::{
     func_like::{
         Func, FuncBody, FuncBodyContent, FuncBodyModifier, FuncModifier, FuncModifierSet,
         FuncParam, FuncParamModifier, FuncParamModifierSet, FuncParams, FuncParamsExtra, Getter,
-        Setter,
+        Operator, Setter, UserDefOperator,
     },
     FuncLike, MaybeRequired, WithMeta,
 };
@@ -35,6 +36,7 @@ where
     context(
         "func_like",
         alt((
+            operator.map(FuncLike::Operator),
             func.map(FuncLike::Func),
             getter.map(FuncLike::Getter),
             setter.map(FuncLike::Setter),
@@ -67,6 +69,42 @@ where
                 modifiers,
                 return_type,
                 name,
+                type_params: type_params.unwrap_or(Vec::new()),
+                params,
+                body,
+            },
+        ),
+    )
+    .parse(s)
+}
+
+fn operator<'s, E>(s: &'s str) -> PResult<Operator, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
+    context(
+        "operator",
+        tuple((
+            alt((
+                terminated(func_modifier_set, spbr),
+                success(FuncModifierSet::default()),
+            )),
+            // Return type
+            terminated(ty, opt(spbr)),
+            // Function name
+            preceded(
+                pair(tag("operator"), opt(spbr)),
+                terminated(user_def_operator, opt(spbr)),
+            ),
+            opt(terminated(type_params, opt(spbr))),
+            terminated(func_params, opt(spbr)),
+            alt((func_body.map(Some), tag(";").map(|_| None))),
+        ))
+        .map(
+            |(modifiers, return_type, operator_type, type_params, params, body)| Operator {
+                modifiers,
+                return_type,
+                operator_type,
                 type_params: type_params.unwrap_or(Vec::new()),
                 params,
                 body,
@@ -364,6 +402,46 @@ fn func_body_modifier<'s, E: ParseError<&'s str>>(s: &'s str) -> PResult<FuncBod
             FuncBodyModifier::SyncGenerator,
             tuple((tag("sync"), opt(spbr), tag("*"))),
         ),
+    ))(s)
+}
+
+pub fn user_def_operator<'s, E>(s: &'s str) -> PResult<UserDefOperator, E>
+where
+    E: ParseError<&'s str> + ContextError<&'s str>,
+{
+    use UserDefOperator as Op;
+
+    alt((
+        preceded(
+            char('<'),
+            alt((
+                value(Op::Lte, char('=')),
+                value(Op::RShiftTri, tag("<<")),
+                value(Op::LShift, char('<')),
+                value(Op::Lt, success(())),
+            )),
+        ),
+        preceded(
+            char('>'),
+            alt((
+                value(Op::Gte, char('=')),
+                value(Op::RShift, char('>')),
+                value(Op::Gt, success(())),
+            )),
+        ),
+        value(Op::Minus, char('-')),
+        value(Op::Add, char('+')),
+        value(Op::Div, char('/')),
+        value(Op::DivInt, tag("~/")),
+        value(Op::Mul, char('*')),
+        value(Op::Mod, char('%')),
+        value(Op::Pipe, char('|')),
+        value(Op::Caret, char('^')),
+        value(Op::Amp, char('&')),
+        value(Op::IndexSet, tag("[]")),
+        value(Op::IndexGet, tag("[]=")),
+        value(Op::Tilde, char('~')),
+        value(Op::Eq, tag("==")),
     ))(s)
 }
 
