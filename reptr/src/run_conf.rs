@@ -12,7 +12,7 @@ pub struct RunConf {
 #[derive(clap::Subcommand)]
 pub enum RunCmd {
     Scan {
-        dir: Option<PathBuf>,
+        dir: Vec<PathBuf>,
         #[arg(short, long)]
         quiet: bool,
     },

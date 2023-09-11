@@ -1,9 +1,9 @@
 use std::{io, path::PathBuf};
 
-use crate::common::try_load;
+use crate::common::read_string;
 
 pub fn parse_file(file_path: PathBuf) -> io::Result<()> {
-    let source = try_load(&file_path)?;
+    let source = read_string(&file_path)?;
     match dart_parser::parse(&source) {
         Ok(ast) => {
             println!("{ast:#?}");

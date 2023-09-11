@@ -12,7 +12,7 @@ fn main() -> io::Result<()> {
     let run_conf = RunConf::parse();
 
     let cmd = run_conf.cmd.unwrap_or(RunCmd::Scan {
-        dir: None,
+        dir: Vec::new(),
         quiet: false,
     });
 

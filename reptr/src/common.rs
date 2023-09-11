@@ -4,7 +4,7 @@ mod error_context;
 mod read_dir_ext;
 
 pub use error_context::ErrorContext;
-pub use read_dir_ext::ReadDirExt;
+pub use read_dir_ext::{MapDirResult, ReadDirExt};
 
 pub fn is_dart_pkg(path: &Path) -> io::Result<bool> {
     let has_manifest = {
@@ -25,6 +25,15 @@ pub fn is_dart_pkg(path: &Path) -> io::Result<bool> {
     Ok(has_manifest && (has_lib(path)? || has_bin(path)?))
 }
 
-pub fn try_load(path: &Path) -> io::Result<String> {
-    fs::read_to_string(path).context_lazy(|| format!("Cannot read file at path {path:?}"))
+pub fn read_string(path: &Path) -> io::Result<String> {
+    String::from_utf8(read(path)?).map_err(|_| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            "Cannot load file at path {path:?}\n\nFile does not contain valid UTF-8",
+        )
+    })
+}
+
+pub fn read(path: &Path) -> io::Result<Vec<u8>> {
+    fs::read(path).context_lazy(|| format!("Cannot read file at path {path:?}"))
 }
