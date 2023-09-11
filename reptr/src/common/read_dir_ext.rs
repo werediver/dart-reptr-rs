@@ -14,7 +14,7 @@ pub struct ReadDirExt<Context, F, G> {
 
 impl<Context, Item, F, G> ReadDirExt<Context, F, G>
 where
-    F: FnMut(Option<&Context>, &Path) -> io::Result<Option<Context>>,
+    F: FnMut(Option<&Context>, &Path) -> io::Result<MapDirResult<Context>>,
     G: FnMut(Option<&Context>, PathBuf) -> io::Result<Option<Item>>,
 {
     pub fn new(dir: PathBuf, map_dir: F, map_file: G) -> Self {
@@ -32,12 +32,17 @@ where
                 if let Some(dir_entry) = read_dir.next() {
                     let path_buf = dir_entry?.path();
                     if path_buf.is_dir() {
-                        self.q.push((
+                        let context =
                             (self.map_dir)(context.as_ref(), &path_buf).context_lazy(|| {
                                 format!("`map_dir` returned error for path {path_buf:?}")
-                            })?,
-                            path_buf,
-                        ));
+                            })?;
+                        match context {
+                            MapDirResult::Mark(new_context) => {
+                                self.q.push((Some(new_context), path_buf))
+                            }
+                            MapDirResult::Clear => self.q.push((None, path_buf)),
+                            MapDirResult::Ignore => {}
+                        }
                     } else {
                         let error_context =
                             format!("`map_file` returned error for path {path_buf:?}");
@@ -51,27 +56,35 @@ where
                     self.current = None;
                 }
             } else if let Some((context, path_buf)) = self.q.pop() {
-                let context = if context.is_some() {
-                    context
+                let context = if let Some(context) = context {
+                    MapDirResult::Mark(context)
                 } else {
                     (self.map_dir)(None, &path_buf)?
                 };
-                self.current = Some((
-                    context,
-                    fs::read_dir(&path_buf).context_lazy(|| {
-                        format!("`fs::read_dir()` returned error for path {path_buf:?}")
-                    })?,
-                ));
+                match context {
+                    MapDirResult::Mark(context) => {
+                        self.current = Some((Some(context), Self::read_dir(&path_buf)?));
+                    }
+                    MapDirResult::Clear => {
+                        self.current = Some((None, Self::read_dir(&path_buf)?));
+                    }
+                    MapDirResult::Ignore => {}
+                }
             } else {
                 return Ok(None);
             }
         }
     }
+
+    fn read_dir(path: &Path) -> io::Result<fs::ReadDir> {
+        fs::read_dir(path)
+            .context_lazy(|| format!("`fs::read_dir()` returned error for path {path:?}"))
+    }
 }
 
 impl<Context, Item, F, G> Iterator for ReadDirExt<Context, F, G>
 where
-    F: FnMut(Option<&Context>, &Path) -> io::Result<Option<Context>>,
+    F: FnMut(Option<&Context>, &Path) -> io::Result<MapDirResult<Context>>,
     G: FnMut(Option<&Context>, PathBuf) -> io::Result<Option<Item>>,
 {
     type Item = io::Result<Item>;
@@ -82,4 +95,11 @@ where
             Err(err) => Some(Err(err)),
         }
     }
+}
+
+#[derive(Debug)]
+pub enum MapDirResult<T> {
+    Mark(T),
+    Clear,
+    Ignore,
 }
