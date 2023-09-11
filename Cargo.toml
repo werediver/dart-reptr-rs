@@ -6,6 +6,5 @@ members = [
   "tiny-set",
 ]
 
-[profile.dev.package."*"]
-opt-level = "s"
-incremental = false
+[profile.dev.package.nom]
+opt-level = 2
