@@ -1,5 +1,5 @@
 pub mod parse_file;
-pub mod scan_dir;
+pub mod scan;
 
 pub use parse_file::parse_file;
-pub use scan_dir::scan_dir;
+pub use scan::scan_dirs;
