@@ -2,15 +2,13 @@ mod dart;
 mod parser;
 
 pub use dart::Dart;
-use dart::WithMeta;
+pub use dart::WithMeta;
 use nom::{
     error::{convert_error, VerboseError},
     Err,
 };
 
-pub fn parse(s: &impl AsRef<str>) -> Result<Vec<WithMeta<Dart>>, String> {
-    let s = s.as_ref();
-
+pub fn parse(s: &str) -> Result<Vec<WithMeta<Dart>>, String> {
     // Using the simple `nom::error::Error` may be more efficient,
     // but `nom::error::VerboseError` allows for much better error messages,
     // which is advantageous for development and debugging.
